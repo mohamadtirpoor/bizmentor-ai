@@ -1,0 +1,7 @@
+{
+  "name": "بیزنس‌متر",
+  "description": "یک چت‌بات مشاوره کسب‌وکار حرفه‌ای با قابلیت صوتی و جستجو در بازار",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
