@@ -1,11 +1,12 @@
 {
   "app": "bus-metr",
-  "platform": "static",
+  "platform": "node",
   "port": 3000,
   "build": {
     "location": "iran"
   },
-  "static": {
-    "path": "dist"
+  "node": {
+    "buildCommand": "npm run build",
+    "startCommand": "npm run preview"
   }
 }
