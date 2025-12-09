@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Vazirmatn', sans-serif;
+  background-color: #000000;
+  color: #e5e7eb;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #000000; 
+}
+::-webkit-scrollbar-thumb {
+  background: #4c1d95; 
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6d28d9; 
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}
