@@ -117,57 +117,57 @@ const App: React.FC = () => {
       )}
 
       {/* Header */}
-      <header className="h-16 flex-none flex items-center justify-between px-6 border-b border-white/10 bg-black/50 backdrop-blur-md z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.5)]">
-            <Briefcase className="text-white w-6 h-6" />
+      <header className="h-14 sm:h-16 flex-none flex items-center justify-between px-3 sm:px-6 border-b border-white/10 bg-black/50 backdrop-blur-md z-50">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.5)]">
+            <Briefcase className="text-white w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-white">
+          <div className="hidden xs:block">
+            <h1 className="text-base sm:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-white">
               بیزنس‌متر
             </h1>
-            <p className="text-[10px] text-gray-400 tracking-wider">مشاور هوشمند کسب‌وکار</p>
+            <p className="text-[8px] sm:text-[10px] text-gray-400 tracking-wider">مشاور هوشمند کسب‌وکار</p>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <nav className="flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/10">
+        <nav className="flex items-center gap-0.5 sm:gap-1 bg-white/5 p-0.5 sm:p-1 rounded-full border border-white/10">
           <button
             onClick={() => handleTabChange('chat')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
               activeTab === 'chat' 
                 ? 'bg-purple-600/80 text-white shadow-lg' 
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">گفتگو</span>
           </button>
           <button
             onClick={() => handleTabChange('voice')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all opacity-50 cursor-not-allowed ${
+            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all opacity-50 cursor-not-allowed ${
               activeTab === 'voice' 
                 ? 'bg-purple-600/80 text-white shadow-lg' 
                 : 'text-gray-400'
             }`}
             disabled
-            title="قابلیت صوتی از طریق API لیارا در دسترس نیست"
+            title="قابلیت صوتی در دسترس نیست"
           >
-            <Mic className="w-4 h-4" />
+            <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">صوتی</span>
           </button>
           <button
             onClick={() => handleTabChange('pricing')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
               activeTab === 'pricing' 
                 ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg' 
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <CreditCard className="w-4 h-4" />
+            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">اشتراک</span>
           </button>
-          <div className="w-px h-6 bg-white/10 mx-1"></div>
+          <div className="w-px h-5 sm:h-6 bg-white/10 mx-0.5 sm:mx-1 hidden sm:block"></div>
           <button
             onClick={() => {
               if (isAdmin) {
@@ -176,14 +176,14 @@ const App: React.FC = () => {
                 setShowAdminLogin(true);
               }
             }}
-            className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
               activeTab === 'admin' 
                 ? 'bg-red-600/80 text-white shadow-lg' 
                 : 'text-gray-500 hover:text-red-400 hover:bg-white/5'
             }`}
             title="پنل مدیریت"
           >
-            <ShieldCheck className="w-4 h-4" />
+            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </nav>
       </header>

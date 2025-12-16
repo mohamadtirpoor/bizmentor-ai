@@ -26,7 +26,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
     {
       id: 'welcome',
       role: MessageRole.MODEL,
-      text: 'سلام! من **بیزنس‌متر** هستم، مشاور ارشد کسب‌وکار شما. \n\nآماده‌ام تا با تحلیل دقیق و راهکارهای اجرایی به رشد بیزینس شما کمک کنم. لطفاً اطلاعات کسب‌وکار یا چالش فعلی‌تان را بفرمایید.',
+      text: 'سلام! من **بیزنس‌متر** هستم، مشاور ارشد کسب‌وکار شما. 🚀\n\nآماده‌ام تا با تحلیل دقیق و راهکارهای اجرایی به رشد بیزینس شما کمک کنم.\n\n📌 برای شروع، ابتدا **ثبت‌نام** کنید و سپس یکی از **پلن‌های اشتراک** را انتخاب کنید.',
       isThinking: false
     }
   ]);
@@ -88,7 +88,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
     setMessages([{
       id: 'welcome',
       role: MessageRole.MODEL,
-      text: 'سلام! من **بیزنس‌متر** هستم، مشاور ارشد کسب‌وکار شما. \n\nآماده‌ام تا با تحلیل دقیق و راهکارهای اجرایی به رشد بیزینس شما کمک کنم. لطفاً اطلاعات کسب‌وکار یا چالش فعلی‌تان را بفرمایید.',
+      text: 'سلام! من **بیزنس‌متر** هستم، مشاور ارشد کسب‌وکار شما. 🚀\n\nآماده‌ام تا با تحلیل دقیق و راهکارهای اجرایی به رشد بیزینس شما کمک کنم.\n\n📌 برای شروع، ابتدا **ثبت‌نام** کنید و سپس یکی از **پلن‌های اشتراک** را انتخاب کنید.',
       isThinking: false
     }]);
     setMode(ChatMode.CONSULTANT);
@@ -142,14 +142,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    // Check if user is logged in
+    // Check if user is logged in - must login/register first
     if (!isLoggedIn) {
       setShowAuthModal(true);
       return;
     }
 
-    // Check if user has exceeded free messages and doesn't have premium
-    if (!hasPremium && freeMessagesUsed >= 1) {
+    // Check if user has premium - no free messages, must subscribe
+    if (!hasPremium) {
       setShowPricingModal(true);
       return;
     }
@@ -163,13 +163,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
-
-    // Increment free messages counter if not premium
-    if (!hasPremium) {
-      const newCount = freeMessagesUsed + 1;
-      setFreeMessagesUsed(newCount);
-      localStorage.setItem('freeMessagesUsed', newCount.toString());
-    }
 
     const botMsgId = (Date.now() + 1).toString();
     // Placeholder message for streaming
@@ -271,28 +264,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
                 <span className="text-4xl">🚀</span>
               </div>
               <h3 className="text-2xl font-bold text-white mb-3">
-                پیام رایگان شما تمام شد!
+                اشتراک تهیه کنید
               </h3>
               <p className="text-gray-400 text-sm leading-relaxed">
-                شما از <span className="text-purple-400 font-bold">{freeMessagesUsed} پیام رایگان</span> خود استفاده کردید.
+                برای استفاده از مشاور هوشمند بیزنس‌متر،
                 <br />
-                برای ادامه، یکی از پلن‌های اشتراک را انتخاب کنید.
+                یکی از پلن‌های اشتراک را انتخاب کنید.
               </p>
             </div>
 
-            {/* Progress Bar */}
+            {/* Info Box */}
             <div className="px-6 pb-6">
               <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">پیام‌های رایگان</span>
-                  <span className="text-sm font-bold text-purple-400">{freeMessagesUsed}/1</span>
-                </div>
-                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-purple-600 to-pink-600 rounded-full transition-all duration-500" 
-                    style={{ width: '100%' }}
-                  ></div>
-                </div>
+                <p className="text-sm text-gray-300 text-center">
+                  برای استفاده از مشاور هوشمند بیزنس‌متر، یکی از پلن‌های اشتراک را انتخاب کنید.
+                </p>
               </div>
             </div>
 
@@ -356,11 +342,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
           </button>
           
           {isLoggedIn && !hasPremium && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs">
-              <span className="text-gray-400">پیام رایگان:</span>
-              <span className={`font-bold ${freeMessagesUsed >= 1 ? 'text-red-400' : 'text-green-400'}`}>
-                {Math.max(0, 1 - freeMessagesUsed)} باقی‌مانده
-              </span>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-full text-xs">
+              <span className="text-amber-400">⚠️</span>
+              <span className="text-amber-300 font-medium">اشتراک فعال ندارید</span>
             </div>
           )}
           
@@ -373,65 +357,67 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
         </div>
 
         {/* Mode Switcher */}
-        <div className="flex justify-center px-4 pb-4 flex-none">
-        <div className="flex bg-white/5 backdrop-blur-md rounded-full p-1 border border-white/10">
+        <div className="flex justify-center px-2 sm:px-4 pb-3 sm:pb-4 flex-none">
+        <div className="flex bg-white/5 backdrop-blur-md rounded-full p-0.5 sm:p-1 border border-white/10">
           <button
             onClick={() => setMode(ChatMode.CONSULTANT)}
-            className={`flex items-center gap-2 px-6 py-2 rounded-full transition-all text-sm font-medium ${
+            className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-1.5 sm:py-2 rounded-full transition-all text-xs sm:text-sm font-medium ${
               mode === ChatMode.CONSULTANT 
                 ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)]' 
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            <Brain className="w-4 h-4" />
-            مشاوره تخصصی (Thinking)
+            <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden xs:inline">مشاوره تخصصی</span>
+            <span className="xs:hidden">مشاوره</span>
           </button>
           <button
             onClick={() => setMode(ChatMode.RESEARCH)}
-            className={`flex items-center gap-2 px-6 py-2 rounded-full transition-all text-sm font-medium ${
+            className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-1.5 sm:py-2 rounded-full transition-all text-xs sm:text-sm font-medium ${
               mode === ChatMode.RESEARCH 
                 ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' 
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            <Globe className="w-4 h-4" />
-            تحقیق بازار (Search)
+            <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden xs:inline">تحقیق بازار</span>
+            <span className="xs:hidden">تحقیق</span>
           </button>
         </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-6 min-h-0 scroll-smooth">
+      <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-2 space-y-4 sm:space-y-6 min-h-0 scroll-smooth">
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex gap-4 ${msg.role === MessageRole.USER ? 'flex-row-reverse' : 'flex-row'}`}
+            className={`flex gap-2 sm:gap-4 ${msg.role === MessageRole.USER ? 'flex-row-reverse' : 'flex-row'}`}
           >
             {/* Avatar */}
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
               msg.role === MessageRole.USER 
                 ? 'bg-gray-700 text-white' 
                 : 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]'
             }`}>
-              {msg.role === MessageRole.USER ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+              {msg.role === MessageRole.USER ? <User className="w-4 h-4 sm:w-5 sm:h-5" /> : <Bot className="w-4 h-4 sm:w-5 sm:h-5" />}
             </div>
 
             {/* Bubble */}
-            <div className={`flex flex-col max-w-[85%] ${msg.role === MessageRole.USER ? 'items-end' : 'items-start'}`}>
+            <div className={`flex flex-col max-w-[85%] sm:max-w-[80%] ${msg.role === MessageRole.USER ? 'items-end' : 'items-start'}`}>
               <div
-                className={`px-5 py-4 rounded-2xl backdrop-blur-sm border ${
+                className={`px-3 sm:px-5 py-3 sm:py-4 rounded-2xl backdrop-blur-sm border ${
                   msg.role === MessageRole.USER
                     ? 'bg-white/10 border-white/5 text-gray-100 rounded-tr-none'
                     : 'bg-purple-900/20 border-purple-500/20 text-gray-200 rounded-tl-none shadow-[0_4px_20px_rgba(0,0,0,0.2)]'
                 }`}
               >
                 {msg.isThinking ? (
-                  <div className="flex items-center gap-2 text-purple-300 text-sm animate-pulse">
-                    <Sparkles className="w-4 h-4" />
-                    <span>در حال تفکر عمیق و تحلیل استراتژیک...</span>
+                  <div className="flex items-center gap-2 text-purple-300 text-xs sm:text-sm animate-pulse">
+                    <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>در حال تحلیل...</span>
                   </div>
                 ) : (
-                  <div className="prose prose-invert prose-purple max-w-none text-right leading-loose">
+                  <div className="prose prose-invert prose-purple max-w-none text-right leading-relaxed sm:leading-loose text-sm sm:text-base">
                     <ReactMarkdown>{msg.text}</ReactMarkdown>
                   </div>
                 )}
@@ -464,15 +450,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
       </div>
 
       {/* Input Area */}
-      <div className="flex-none p-4 bg-black/60 backdrop-blur-lg border-t border-white/5">
-        <div className="max-w-4xl mx-auto relative flex items-end gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 focus-within:border-purple-500/50 focus-within:bg-white/10 transition-all">
+      <div className="flex-none p-2 sm:p-4 bg-black/60 backdrop-blur-lg border-t border-white/5">
+        <div className="max-w-4xl mx-auto relative flex items-end gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 focus-within:border-purple-500/50 focus-within:bg-white/10 transition-all cursor-text" onClick={(e) => {
+          const textarea = e.currentTarget.querySelector('textarea');
+          if (textarea) textarea.focus();
+        }}>
            <textarea
              value={input}
              onChange={(e) => setInput(e.target.value)}
              onKeyDown={handleKeyDown}
-             placeholder={mode === ChatMode.CONSULTANT ? "چالش کسب‌وکار خود را توضیح دهید..." : "سوال خود را درباره بازار یا رقبا بپرسید..."}
-             className="w-full bg-transparent border-none text-gray-100 placeholder-gray-500 resize-none focus:ring-0 max-h-32 min-h-[24px] overflow-y-auto"
+             placeholder={mode === ChatMode.CONSULTANT ? "سوال خود را بنویسید..." : "درباره بازار بپرسید..."}
+             className="w-full bg-transparent border-none text-gray-100 placeholder-gray-500 resize-none focus:ring-0 focus:outline-none max-h-32 min-h-[24px] overflow-y-auto text-right text-sm sm:text-base"
              rows={1}
+             dir="rtl"
              style={{ height: 'auto', minHeight: '24px' }}
              onInput={(e) => {
                const target = e.target as HTMLTextAreaElement;
@@ -483,18 +473,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
            <button
              onClick={handleSend}
              disabled={!input.trim() || isLoading}
-             className="p-3 rounded-xl bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_10px_rgba(168,85,247,0.4)] flex-shrink-0"
+             className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_10px_rgba(168,85,247,0.4)] flex-shrink-0"
              title={!isLoggedIn ? 'برای ارسال پیام ابتدا وارد شوید' : ''}
            >
              {isLoading ? (
-               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+               <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
              ) : (
-               <Send className="w-5 h-5 rtl:rotate-180" />
+               <Send className="w-4 h-4 sm:w-5 sm:h-5" />
              )}
            </button>
         </div>
-        <p className="text-center text-xs text-gray-600 mt-2">
-          بیزنس‌متر ممکن است اشتباه کند. لطفاً اطلاعات مهم را بررسی کنید.
+        <p className="text-center text-[10px] sm:text-xs text-gray-600 mt-1.5 sm:mt-2">
+          بیزنس‌متر ممکن است اشتباه کند. اطلاعات مهم را بررسی کنید.
         </p>
       </div>
 
