@@ -179,9 +179,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {messages.length === 0 ? (
           /* Empty State */
           <div className="h-full flex flex-col items-center justify-center p-6">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-6">
-              <Bot className="w-8 h-8 text-white" />
-            </div>
+            <img src="/logo/Untitled-1.png" alt="بیزنس‌متر" className="w-16 h-16 rounded-2xl object-contain mb-6" />
             <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
               سلام! من بیزنس‌متر هستم
             </h2>

@@ -249,9 +249,7 @@ const App: React.FC = () => {
             {/* Header */}
             <div className={`p-4 flex items-center justify-between ${darkMode ? 'shadow-[0_2px_10px_rgba(139,92,246,0.1)]' : 'shadow-sm'}`}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center">
-                  <Briefcase className="text-white w-5 h-5" />
-                </div>
+                <img src="/logo/Untitled-1.png" alt="بیزنس‌متر" className="w-10 h-10 rounded-xl object-contain" />
                 <div>
                   <h1 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</h1>
                   <p className={`text-[10px] ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>مشاور هوشمند کسب‌وکار</p>
@@ -341,9 +339,7 @@ const App: React.FC = () => {
         <div className={`p-4 ${darkMode ? 'shadow-[0_2px_10px_rgba(139,92,246,0.1)]' : 'shadow-sm'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center">
-                <Briefcase className="text-white w-5 h-5" />
-              </div>
+              <img src="/logo/Untitled-1.png" alt="بیزنس‌متر" className="w-10 h-10 rounded-xl object-contain" />
               <div>
                 <h1 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</h1>
                 <p className={`text-[10px] ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>مشاور هوشمند کسب‌وکار</p>
@@ -454,9 +450,7 @@ const App: React.FC = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center">
-              <Briefcase className="text-white w-4 h-4" />
-            </div>
+            <img src="/logo/Untitled-1.png" alt="بیزنس‌متر" className="w-8 h-8 rounded-lg object-contain" />
             <span className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</span>
           </div>
 
