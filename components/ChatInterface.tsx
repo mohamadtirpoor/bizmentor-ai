@@ -1,50 +1,41 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Send, Globe, Brain, User, Bot, Sparkles, ExternalLink, Menu } from 'lucide-react';
+import { 
+  User, 
+  Bot, 
+  Sparkles, 
+  Star,
+  ArrowUp
+} from 'lucide-react';
 import { ChatMode, Message, MessageRole } from '../types';
 import { streamChatResponse } from '../services/geminiService';
-import Sidebar from './Sidebar';
-import AuthModal from './AuthModal';
-import ProfileModal from './ProfileModal';
-import SettingsModal from './SettingsModal';
-
-interface ChatHistory {
-  id: string;
-  title: string;
-  date: string;
-  preview: string;
-  messages: Message[];
-  mode: ChatMode;
-}
 
 interface ChatInterfaceProps {
   onNavigateToPricing?: () => void;
+  darkMode?: boolean;
+  isLoggedIn?: boolean;
+  hasPremium?: boolean;
+  onRequestAuth?: () => void;
+  initialMessages?: Message[];
+  onSaveChat?: (messages: Message[], title: string) => void;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: MessageRole.MODEL,
-      text: 'سلام! من **بیزنس‌متر** هستم، مشاور ارشد کسب‌وکار شما. 🚀\n\nآماده‌ام تا با تحلیل دقیق و راهکارهای اجرایی به رشد بیزینس شما کمک کنم.\n\n📌 برای شروع، ابتدا **ثبت‌نام** کنید و سپس یکی از **پلن‌های اشتراک** را انتخاب کنید.',
-      isThinking: false
-    }
-  ]);
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
+  onNavigateToPricing, 
+  darkMode = false,
+  isLoggedIn = false,
+  hasPremium = false,
+  onRequestAuth,
+  initialMessages,
+  onSaveChat
+}) => {
+  const [messages, setMessages] = useState<Message[]>(initialMessages || []);
   const [input, setInput] = useState('');
-  const [mode, setMode] = useState<ChatMode>(ChatMode.CONSULTANT);
+  const [mode] = useState<ChatMode>(ChatMode.CONSULTANT);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
-  const [currentChatId, setCurrentChatId] = useState<string>('default');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [userData, setUserData] = useState<{ name: string; email: string } | null>(null);
-  const [freeMessagesUsed, setFreeMessagesUsed] = useState(0);
   const [showPricingModal, setShowPricingModal] = useState(false);
-  const [hasPremium, setHasPremium] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -54,101 +45,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
     scrollToBottom();
   }, [messages]);
 
-  const saveCurrentChat = () => {
-    if (messages.length > 1) {
-      const userMessages = messages.filter(m => m.role === MessageRole.USER);
-      const firstUserMsg = userMessages[0]?.text || 'چت جدید';
-      const title = firstUserMsg.slice(0, 50) + (firstUserMsg.length > 50 ? '...' : '');
-      
-      setChatHistory(prev => {
-        const existing = prev.find(c => c.id === currentChatId);
-        if (existing) {
-          return prev.map(c => c.id === currentChatId ? {
-            ...c,
-            messages,
-            mode,
-            date: new Date().toLocaleDateString('fa-IR')
-          } : c);
-        }
-        return [...prev, {
-          id: currentChatId,
-          title,
-          date: new Date().toLocaleDateString('fa-IR'),
-          preview: firstUserMsg.slice(0, 100),
-          messages,
-          mode
-        }];
-      });
-    }
-  };
-
-  const handleNewChat = () => {
-    saveCurrentChat();
-    setCurrentChatId(Date.now().toString());
-    setMessages([{
-      id: 'welcome',
-      role: MessageRole.MODEL,
-      text: 'سلام! من **بیزنس‌متر** هستم، مشاور ارشد کسب‌وکار شما. 🚀\n\nآماده‌ام تا با تحلیل دقیق و راهکارهای اجرایی به رشد بیزینس شما کمک کنم.\n\n📌 برای شروع، ابتدا **ثبت‌نام** کنید و سپس یکی از **پلن‌های اشتراک** را انتخاب کنید.',
-      isThinking: false
-    }]);
-    setMode(ChatMode.CONSULTANT);
-  };
-
-  const handleSelectChat = (chatId: string) => {
-    saveCurrentChat();
-    const chat = chatHistory.find(c => c.id === chatId);
-    if (chat) {
-      setCurrentChatId(chat.id);
-      setMessages(chat.messages);
-      setMode(chat.mode);
-    }
-  };
-
-  const handleDeleteChat = (chatId: string) => {
-    setChatHistory(prev => prev.filter(c => c.id !== chatId));
-    if (currentChatId === chatId) {
-      handleNewChat();
-    }
-  };
-
-  const handleAuthSuccess = (user: { name: string; email: string }) => {
-    setIsLoggedIn(true);
-    setUserData(user);
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('userData', JSON.stringify(user));
-    // Initialize free messages count for new user
-    if (!localStorage.getItem('freeMessagesUsed')) {
-      localStorage.setItem('freeMessagesUsed', '0');
-    }
-  };
-
-  // Check if user is already logged in on mount
   useEffect(() => {
-    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    const storedUser = localStorage.getItem('userData');
-    const messagesUsed = parseInt(localStorage.getItem('freeMessagesUsed') || '0');
-    const premium = localStorage.getItem('hasPremium') === 'true';
-    
-    if (loggedIn && storedUser) {
-      setIsLoggedIn(true);
-      setUserData(JSON.parse(storedUser));
-      setFreeMessagesUsed(messagesUsed);
-      setHasPremium(premium);
+    if (initialMessages) {
+      setMessages(initialMessages);
     }
-  }, []);
+  }, [initialMessages]);
 
-
+  const handleInputFocus = () => {
+    if (!isLoggedIn && onRequestAuth) {
+      onRequestAuth();
+      return;
+    }
+    if (!hasPremium) {
+      setShowPricingModal(true);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    // Check if user is logged in - must login/register first
-    if (!isLoggedIn) {
-      setShowAuthModal(true);
+    if (!isLoggedIn && onRequestAuth) {
+      onRequestAuth();
       return;
     }
 
-    // Check if user has premium - no free messages, must subscribe
     if (!hasPremium) {
       setShowPricingModal(true);
       return;
@@ -160,17 +80,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
       text: input
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInput('');
     setIsLoading(true);
 
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+
     const botMsgId = (Date.now() + 1).toString();
-    // Placeholder message for streaming
     setMessages(prev => [...prev, {
       id: botMsgId,
       role: MessageRole.MODEL,
       text: '',
-      isThinking: mode === ChatMode.CONSULTANT
+      isThinking: true
     }]);
 
     try {
@@ -185,12 +109,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
             m.id === botMsgId ? { ...m, text: fullText, isThinking: false } : m
           ));
         },
-        (groundingChunks) => {
-          setMessages(prev => prev.map(m => 
-            m.id === botMsgId ? { ...m, groundingMetadata: groundingChunks } : m
-          ));
-        }
+        () => {}
       );
+      
+      // Save chat after response
+      const finalMessages = [...newMessages, { id: botMsgId, role: MessageRole.MODEL, text: fullText }];
+      const title = userMsg.text.slice(0, 30) + (userMsg.text.length > 30 ? '...' : '');
+      if (onSaveChat) {
+        onSaveChat(finalMessages, title);
+      }
     } catch (error) {
       console.error("Chat Error", error);
     } finally {
@@ -205,99 +132,40 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
     }
   };
 
-  useEffect(() => {
-    saveCurrentChat();
-  }, [messages]);
-
   return (
-    <>
-      <AuthModal 
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={handleAuthSuccess}
-        initialMode="register"
-      />
-
-      <ProfileModal
-        isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-        userData={userData}
-        hasPremium={hasPremium}
-        freeMessagesUsed={freeMessagesUsed}
-        onUpdateProfile={(data) => {
-          setUserData(data);
-          localStorage.setItem('userData', JSON.stringify(data));
-        }}
-      />
-
-      <SettingsModal
-        isOpen={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-        onLogout={() => {
-          setIsLoggedIn(false);
-          setUserData(null);
-          setFreeMessagesUsed(0);
-          setHasPremium(false);
-          localStorage.removeItem('isLoggedIn');
-          localStorage.removeItem('userData');
-          localStorage.removeItem('freeMessagesUsed');
-          localStorage.removeItem('hasPremium');
-          setShowSettingsModal(false);
-        }}
-        onDeleteAccount={() => {
-          setIsLoggedIn(false);
-          setUserData(null);
-          setFreeMessagesUsed(0);
-          setHasPremium(false);
-          setChatHistory([]);
-          localStorage.clear();
-        }}
-      />
-
-      {/* Pricing Notification Modal */}
+    <div className="flex flex-col h-full">
+      {/* Pricing Modal */}
       {showPricingModal && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl w-full max-w-md border border-white/10 shadow-2xl animate-in zoom-in slide-in-from-bottom-4 duration-300">
-            {/* Header */}
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className={`rounded-2xl w-full max-w-md shadow-2xl ${
+            darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white'
+          }`}>
             <div className="p-6 text-center">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                <span className="text-4xl">🚀</span>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                <Star className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-3">
+              <h3 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
                 اشتراک تهیه کنید
               </h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                برای استفاده از مشاور هوشمند بیزنس‌متر،
-                <br />
-                یکی از پلن‌های اشتراک را انتخاب کنید.
+              <p className={`text-sm ${darkMode ? 'text-purple-300/60' : 'text-gray-500'}`}>
+                برای استفاده از بیزنس‌متر، یکی از پلن‌ها را انتخاب کنید.
               </p>
             </div>
-
-            {/* Info Box */}
-            <div className="px-6 pb-6">
-              <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                <p className="text-sm text-gray-300 text-center">
-                  برای استفاده از مشاور هوشمند بیزنس‌متر، یکی از پلن‌های اشتراک را انتخاب کنید.
-                </p>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="p-6 border-t border-white/10 space-y-3">
+            <div className={`p-6 border-t space-y-3 ${darkMode ? 'border-purple-500/20' : 'border-gray-100'}`}>
               <button
                 onClick={() => {
                   setShowPricingModal(false);
-                  if (onNavigateToPricing) {
-                    onNavigateToPricing();
-                  }
+                  if (onNavigateToPricing) onNavigateToPricing();
                 }}
-                className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-600/20"
+                className="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-xl"
               >
-                مشاهده پلن‌های اشتراک
+                مشاهده پلن‌ها
               </button>
               <button
                 onClick={() => setShowPricingModal(false)}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 text-gray-300 font-medium rounded-xl transition-all"
+                className={`w-full py-3 font-medium rounded-xl ${
+                  darkMode ? 'bg-purple-500/10 text-purple-300' : 'bg-gray-100 text-gray-600'
+                }`}
               >
                 بستن
               </button>
@@ -306,190 +174,210 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onNavigateToPricing }) =>
         </div>
       )}
 
-      <Sidebar 
-        isOpen={isSidebarOpen}
-        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        onNewChat={handleNewChat}
-        chatHistory={chatHistory}
-        onSelectChat={handleSelectChat}
-        onDeleteChat={handleDeleteChat}
-        currentChatId={currentChatId}
-        isLoggedIn={isLoggedIn}
-        userData={userData}
-        onLogout={() => {
-          setIsLoggedIn(false);
-          setUserData(null);
-          setFreeMessagesUsed(0);
-          setHasPremium(false);
-          localStorage.removeItem('isLoggedIn');
-          localStorage.removeItem('userData');
-          localStorage.removeItem('freeMessagesUsed');
-          localStorage.removeItem('hasPremium');
-        }}
-        onShowAuth={() => setShowAuthModal(true)}
-        onShowProfile={() => setShowProfileModal(true)}
-        onShowSettings={() => setShowSettingsModal(true)}
-      />
-      
-      <div className="flex flex-col h-full w-full max-w-5xl mx-auto">
-        {/* Hamburger Button & Free Messages Counter */}
-        <div className="flex justify-between items-center p-4 flex-none">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          
-          {isLoggedIn && !hasPremium && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-full text-xs">
-              <span className="text-amber-400">⚠️</span>
-              <span className="text-amber-300 font-medium">اشتراک فعال ندارید</span>
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto">
+        {messages.length === 0 ? (
+          /* Empty State */
+          <div className="h-full flex flex-col items-center justify-center p-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-6">
+              <Bot className="w-8 h-8 text-white" />
             </div>
-          )}
-          
-          {isLoggedIn && hasPremium && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-full text-xs">
-              <span className="text-amber-400">👑</span>
-              <span className="text-amber-300 font-bold">اشتراک فعال</span>
-            </div>
-          )}
-        </div>
-
-        {/* Mode Switcher */}
-        <div className="flex justify-center px-2 sm:px-4 pb-3 sm:pb-4 flex-none">
-        <div className="flex bg-white/5 backdrop-blur-md rounded-full p-0.5 sm:p-1 border border-white/10">
-          <button
-            onClick={() => setMode(ChatMode.CONSULTANT)}
-            className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-1.5 sm:py-2 rounded-full transition-all text-xs sm:text-sm font-medium ${
-              mode === ChatMode.CONSULTANT 
-                ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)]' 
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden xs:inline">مشاوره تخصصی</span>
-            <span className="xs:hidden">مشاوره</span>
-          </button>
-          <button
-            onClick={() => setMode(ChatMode.RESEARCH)}
-            className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-1.5 sm:py-2 rounded-full transition-all text-xs sm:text-sm font-medium ${
-              mode === ChatMode.RESEARCH 
-                ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' 
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden xs:inline">تحقیق بازار</span>
-            <span className="xs:hidden">تحقیق</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-2 space-y-4 sm:space-y-6 min-h-0 scroll-smooth">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex gap-2 sm:gap-4 ${msg.role === MessageRole.USER ? 'flex-row-reverse' : 'flex-row'}`}
-          >
-            {/* Avatar */}
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-              msg.role === MessageRole.USER 
-                ? 'bg-gray-700 text-white' 
-                : 'bg-purple-600 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]'
-            }`}>
-              {msg.role === MessageRole.USER ? <User className="w-4 h-4 sm:w-5 sm:h-5" /> : <Bot className="w-4 h-4 sm:w-5 sm:h-5" />}
-            </div>
-
-            {/* Bubble */}
-            <div className={`flex flex-col max-w-[85%] sm:max-w-[80%] ${msg.role === MessageRole.USER ? 'items-end' : 'items-start'}`}>
-              <div
-                className={`px-3 sm:px-5 py-3 sm:py-4 rounded-2xl backdrop-blur-sm border ${
-                  msg.role === MessageRole.USER
-                    ? 'bg-white/10 border-white/5 text-gray-100 rounded-tr-none'
-                    : 'bg-purple-900/20 border-purple-500/20 text-gray-200 rounded-tl-none shadow-[0_4px_20px_rgba(0,0,0,0.2)]'
+            <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              سلام! من بیزنس‌متر هستم
+            </h2>
+            <p className={`text-center max-w-md mb-8 ${darkMode ? 'text-purple-300/60' : 'text-gray-500'}`}>
+              مشاور هوشمند کسب‌وکار شما. آماده‌ام تا با تحلیل دقیق به رشد بیزینس شما کمک کنم.
+            </p>
+            
+            {/* Quick Actions */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
+              <button 
+                onClick={() => {
+                  if (!isLoggedIn && onRequestAuth) {
+                    onRequestAuth();
+                  } else if (!hasPremium) {
+                    setShowPricingModal(true);
+                  } else {
+                    setInput('چطور می‌تونم فروشم رو افزایش بدم؟');
+                  }
+                }}
+                className={`p-4 border rounded-xl text-right transition-all ${
+                  darkMode 
+                    ? 'bg-[#12121a] border-purple-500/20 hover:border-purple-500/40 hover:bg-purple-500/5' 
+                    : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50'
                 }`}
               >
-                {msg.isThinking ? (
-                  <div className="flex items-center gap-2 text-purple-300 text-xs sm:text-sm animate-pulse">
-                    <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span>در حال تحلیل...</span>
-                  </div>
-                ) : (
-                  <div className="prose prose-invert prose-purple max-w-none text-right leading-relaxed sm:leading-loose text-sm sm:text-base">
-                    <ReactMarkdown>{msg.text}</ReactMarkdown>
-                  </div>
-                )}
-              </div>
-              
-              {/* Search Results (Grounding) */}
-              {msg.groundingMetadata && msg.groundingMetadata.length > 0 && (
-                 <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-                    {msg.groundingMetadata.map((chunk: any, idx: number) => {
-                      if (!chunk.web?.uri) return null;
-                      return (
-                        <a 
-                          key={idx}
-                          href={chunk.web.uri} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="flex items-center gap-2 p-2 rounded-lg bg-blue-900/20 border border-blue-500/20 text-xs text-blue-300 hover:bg-blue-900/40 transition-colors"
-                        >
-                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{chunk.web.title || chunk.web.uri}</span>
-                        </a>
-                      );
-                    })}
-                 </div>
-              )}
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>افزایش فروش</p>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-purple-400/50' : 'text-gray-400'}`}>راهکارهای عملی برای رشد فروش</p>
+              </button>
+              <button 
+                onClick={() => {
+                  if (!isLoggedIn && onRequestAuth) {
+                    onRequestAuth();
+                  } else if (!hasPremium) {
+                    setShowPricingModal(true);
+                  } else {
+                    setInput('برای شروع یک استارتاپ چه کارهایی باید انجام بدم؟');
+                  }
+                }}
+                className={`p-4 border rounded-xl text-right transition-all ${
+                  darkMode 
+                    ? 'bg-[#12121a] border-purple-500/20 hover:border-purple-500/40 hover:bg-purple-500/5' 
+                    : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                }`}
+              >
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>شروع استارتاپ</p>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-purple-400/50' : 'text-gray-400'}`}>راهنمای گام به گام</p>
+              </button>
+              <button 
+                onClick={() => {
+                  if (!isLoggedIn && onRequestAuth) {
+                    onRequestAuth();
+                  } else if (!hasPremium) {
+                    setShowPricingModal(true);
+                  } else {
+                    setInput('چطور بازاریابی دیجیتال انجام بدم؟');
+                  }
+                }}
+                className={`p-4 border rounded-xl text-right transition-all ${
+                  darkMode 
+                    ? 'bg-[#12121a] border-purple-500/20 hover:border-purple-500/40 hover:bg-purple-500/5' 
+                    : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                }`}
+              >
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>بازاریابی دیجیتال</p>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-purple-400/50' : 'text-gray-400'}`}>استراتژی‌های آنلاین</p>
+              </button>
+              <button 
+                onClick={() => {
+                  if (!isLoggedIn && onRequestAuth) {
+                    onRequestAuth();
+                  } else if (!hasPremium) {
+                    setShowPricingModal(true);
+                  } else {
+                    setInput('چطور تیم خوب بسازم؟');
+                  }
+                }}
+                className={`p-4 border rounded-xl text-right transition-all ${
+                  darkMode 
+                    ? 'bg-[#12121a] border-purple-500/20 hover:border-purple-500/40 hover:bg-purple-500/5' 
+                    : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                }`}
+              >
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>مدیریت تیم</p>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-purple-400/50' : 'text-gray-400'}`}>ساخت تیم موفق</p>
+              </button>
             </div>
           </div>
-        ))}
-        <div ref={messagesEndRef} className="h-4" />
+        ) : (
+          /* Messages */
+          <div className="max-w-3xl mx-auto p-4 space-y-6">
+            {messages.map((msg) => (
+              <div key={msg.id} className={`flex gap-3 ${msg.role === MessageRole.USER ? 'flex-row-reverse' : ''}`}>
+                {/* Avatar */}
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  msg.role === MessageRole.USER 
+                    ? darkMode ? 'bg-purple-500/20' : 'bg-gray-200'
+                    : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                }`}>
+                  {msg.role === MessageRole.USER 
+                    ? <User className={`w-4 h-4 ${darkMode ? 'text-purple-300' : 'text-gray-600'}`} /> 
+                    : <Bot className="w-4 h-4 text-white" />
+                  }
+                </div>
+
+                {/* Message */}
+                <div className={`flex-1 ${msg.role === MessageRole.USER ? 'text-left' : 'text-right'}`}>
+                  <div className={`inline-block max-w-[90%] p-4 rounded-2xl ${
+                    msg.role === MessageRole.USER
+                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-tr-none'
+                      : darkMode 
+                        ? 'bg-[#12121a] border border-purple-500/20 text-gray-200 rounded-tl-none'
+                        : 'bg-white border border-gray-200 text-gray-700 rounded-tl-none'
+                  }`}>
+                    {msg.isThinking ? (
+                      <div className={`flex items-center gap-2 ${darkMode ? 'text-purple-400' : 'text-gray-400'}`}>
+                        <Sparkles className="w-4 h-4 animate-pulse" />
+                        <span className="text-sm">در حال تحلیل...</span>
+                      </div>
+                    ) : (
+                      <div className="prose prose-sm max-w-none text-right leading-relaxed">
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
       {/* Input Area */}
-      <div className="flex-none p-2 sm:p-4 bg-black/60 backdrop-blur-lg border-t border-white/5">
-        <div className="max-w-4xl mx-auto relative flex items-end gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 focus-within:border-purple-500/50 focus-within:bg-white/10 transition-all cursor-text" onClick={(e) => {
-          const textarea = e.currentTarget.querySelector('textarea');
-          if (textarea) textarea.focus();
-        }}>
-           <textarea
-             value={input}
-             onChange={(e) => setInput(e.target.value)}
-             onKeyDown={handleKeyDown}
-             placeholder={mode === ChatMode.CONSULTANT ? "سوال خود را بنویسید..." : "درباره بازار بپرسید..."}
-             className="w-full bg-transparent border-none text-gray-100 placeholder-gray-500 resize-none focus:ring-0 focus:outline-none max-h-32 min-h-[24px] overflow-y-auto text-right text-sm sm:text-base"
-             rows={1}
-             dir="rtl"
-             style={{ height: 'auto', minHeight: '24px' }}
-             onInput={(e) => {
-               const target = e.target as HTMLTextAreaElement;
-               target.style.height = 'auto';
-               target.style.height = `${target.scrollHeight}px`;
-             }}
-           />
-           <button
-             onClick={handleSend}
-             disabled={!input.trim() || isLoading}
-             className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_10px_rgba(168,85,247,0.4)] flex-shrink-0"
-             title={!isLoggedIn ? 'برای ارسال پیام ابتدا وارد شوید' : ''}
-           >
-             {isLoading ? (
-               <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-             ) : (
-               <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-             )}
-           </button>
+      <div className={`p-4 ${darkMode ? 'bg-[#0a0a0f]' : 'bg-gray-50'}`}>
+        <div className="max-w-3xl mx-auto">
+          <div 
+            className={`flex items-end gap-3 p-4 rounded-2xl transition-all shadow-lg ${
+              darkMode 
+                ? 'bg-[#12121a] border border-purple-500/30 shadow-purple-500/5 focus-within:border-purple-500/50' 
+                : 'bg-white border border-gray-200 shadow-gray-200/50 focus-within:border-purple-400 focus-within:shadow-purple-100'
+            }`}
+            onClick={() => {
+              if (!isLoggedIn || !hasPremium) {
+                handleInputFocus();
+              }
+            }}
+          >
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={handleInputFocus}
+              placeholder="هر چیزی بپرسید..."
+              className={`flex-1 bg-transparent border-none resize-none focus:ring-0 focus:outline-none min-h-[24px] max-h-32 text-right text-sm ${
+                darkMode 
+                  ? 'text-gray-200 placeholder-purple-400/40' 
+                  : 'text-gray-700 placeholder-gray-400'
+              }`}
+              rows={1}
+              dir="rtl"
+              readOnly={!isLoggedIn || !hasPremium}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
+              }}
+            />
+            
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading || !isLoggedIn || !hasPremium}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  darkMode 
+                    ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:opacity-90' 
+                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                }`}
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <ArrowUp className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <p className={`text-center text-xs mt-3 ${darkMode ? 'text-purple-400/40' : 'text-gray-400'}`}>
+            بیزنس‌متر ممکن است خطا کند. اطلاعات مهم را بررسی کنید.
+          </p>
         </div>
-        <p className="text-center text-[10px] sm:text-xs text-gray-600 mt-1.5 sm:mt-2">
-          بیزنس‌متر ممکن است اشتباه کند. اطلاعات مهم را بررسی کنید.
-        </p>
       </div>
-
-      </div>
-    </>
+    </div>
   );
 };
 

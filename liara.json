@@ -1,12 +1,5 @@
 {
   "app": "bus-metr",
   "platform": "node",
-  "port": 3000,
-  "build": {
-    "location": "iran"
-  },
-  "node": {
-    "buildCommand": "npm run build",
-    "startCommand": "npm run preview"
-  }
+  "port": 3000
 }

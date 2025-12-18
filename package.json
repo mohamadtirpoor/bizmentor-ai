@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "start": "node serve.js",
     "server": "tsx watch server/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",

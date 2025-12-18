@@ -15,22 +15,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onDeleteAccount
 }) => {
   const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState('fa');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl w-full max-w-md border border-white/10 shadow-2xl animate-in zoom-in slide-in-from-bottom-4 duration-300 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10 sticky top-0 bg-gray-900/95 backdrop-blur-sm">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <Settings className="w-5 h-5 text-purple-400" />
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white">
+          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <Settings className="w-5 h-5 text-purple-600" />
             تنظیمات
           </h3>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -39,29 +39,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="p-6 space-y-6">
           {/* Appearance */}
           <div>
-            <h4 className="text-sm font-medium text-gray-400 mb-3">ظاهر</h4>
+            <h4 className="text-sm font-medium text-gray-500 mb-3">ظاهر</h4>
             <div className="space-y-2">
-              <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                 <div className="flex items-center gap-3">
                   <Moon className="w-5 h-5 text-gray-400" />
-                  <span className="text-white">حالت تاریک</span>
+                  <span className="text-gray-700">حالت تاریک</span>
                 </div>
                 <button
                   onClick={() => setDarkMode(!darkMode)}
-                  className={`w-12 h-6 rounded-full transition-colors ${darkMode ? 'bg-purple-600' : 'bg-gray-600'}`}
+                  className={`w-12 h-6 rounded-full transition-colors ${darkMode ? 'bg-purple-600' : 'bg-gray-300'}`}
                 >
-                  <div className={`w-5 h-5 bg-white rounded-full transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-0.5'}`}></div>
+                  <div className={`w-5 h-5 bg-white rounded-full transition-transform shadow ${darkMode ? 'translate-x-6' : 'translate-x-0.5'}`}></div>
                 </button>
               </div>
-              <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                 <div className="flex items-center gap-3">
                   <Globe className="w-5 h-5 text-gray-400" />
-                  <span className="text-white">زبان</span>
+                  <span className="text-gray-700">زبان</span>
                 </div>
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="bg-white/10 border border-white/10 rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:border-purple-500"
+                  className="bg-white border border-gray-200 rounded-lg px-3 py-1 text-gray-700 text-sm focus:outline-none focus:border-purple-500"
                 >
                   <option value="fa">فارسی</option>
                   <option value="en">English</option>
@@ -72,18 +72,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Notifications */}
           <div>
-            <h4 className="text-sm font-medium text-gray-400 mb-3">اعلان‌ها</h4>
+            <h4 className="text-sm font-medium text-gray-500 mb-3">اعلان‌ها</h4>
             <div className="space-y-2">
-              <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                 <div className="flex items-center gap-3">
                   <Bell className="w-5 h-5 text-gray-400" />
-                  <span className="text-white">اعلان‌های پوش</span>
+                  <span className="text-gray-700">اعلان‌های پوش</span>
                 </div>
                 <button
                   onClick={() => setNotifications(!notifications)}
-                  className={`w-12 h-6 rounded-full transition-colors ${notifications ? 'bg-purple-600' : 'bg-gray-600'}`}
+                  className={`w-12 h-6 rounded-full transition-colors ${notifications ? 'bg-purple-600' : 'bg-gray-300'}`}
                 >
-                  <div className={`w-5 h-5 bg-white rounded-full transition-transform ${notifications ? 'translate-x-6' : 'translate-x-0.5'}`}></div>
+                  <div className={`w-5 h-5 bg-white rounded-full transition-transform shadow ${notifications ? 'translate-x-6' : 'translate-x-0.5'}`}></div>
                 </button>
               </div>
             </div>
@@ -91,13 +91,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Security */}
           <div>
-            <h4 className="text-sm font-medium text-gray-400 mb-3">امنیت</h4>
+            <h4 className="text-sm font-medium text-gray-500 mb-3">امنیت</h4>
             <div className="space-y-2">
-              <button className="w-full flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors text-right">
+              <button className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors text-right">
                 <Lock className="w-5 h-5 text-gray-400" />
                 <div className="flex-1">
-                  <span className="text-white block">تغییر رمز عبور</span>
-                  <span className="text-xs text-gray-500">رمز عبور خود را تغییر دهید</span>
+                  <span className="text-gray-700 block">تغییر رمز عبور</span>
+                  <span className="text-xs text-gray-400">رمز عبور خود را تغییر دهید</span>
                 </div>
               </button>
             </div>
@@ -105,26 +105,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Account Actions */}
           <div>
-            <h4 className="text-sm font-medium text-gray-400 mb-3">حساب کاربری</h4>
+            <h4 className="text-sm font-medium text-gray-500 mb-3">حساب کاربری</h4>
             <div className="space-y-2">
               <button
                 onClick={onLogout}
-                className="w-full flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors text-right"
+                className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors text-right"
               >
-                <LogOut className="w-5 h-5 text-orange-400" />
+                <LogOut className="w-5 h-5 text-orange-500" />
                 <div className="flex-1">
-                  <span className="text-orange-400 block">خروج از حساب</span>
-                  <span className="text-xs text-gray-500">از حساب کاربری خود خارج شوید</span>
+                  <span className="text-orange-500 block">خروج از حساب</span>
+                  <span className="text-xs text-gray-400">از حساب کاربری خود خارج شوید</span>
                 </div>
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="w-full flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-colors text-right"
+                className="w-full flex items-center gap-3 p-3 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-colors text-right"
               >
-                <Trash2 className="w-5 h-5 text-red-400" />
+                <Trash2 className="w-5 h-5 text-red-500" />
                 <div className="flex-1">
-                  <span className="text-red-400 block">حذف حساب کاربری</span>
-                  <span className="text-xs text-red-400/60">این عمل غیرقابل بازگشت است</span>
+                  <span className="text-red-500 block">حذف حساب کاربری</span>
+                  <span className="text-xs text-red-400">این عمل غیرقابل بازگشت است</span>
                 </div>
               </button>
             </div>
@@ -133,8 +133,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Delete Confirmation */}
         {showDeleteConfirm && (
-          <div className="p-6 border-t border-white/10 bg-red-500/10">
-            <p className="text-sm text-red-300 mb-4">
+          <div className="p-6 border-t border-gray-100 bg-red-50">
+            <p className="text-sm text-red-600 mb-4">
               آیا مطمئن هستید که می‌خواهید حساب کاربری خود را حذف کنید؟ تمام داده‌های شما پاک خواهد شد.
             </p>
             <div className="flex gap-3">
@@ -149,7 +149,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all"
+                className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-all"
               >
                 انصراف
               </button>
@@ -158,8 +158,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         )}
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/10 text-center">
-          <p className="text-xs text-gray-500">بیزنس‌متر نسخه ۱.۰.۰</p>
+        <div className="p-4 border-t border-gray-100 text-center">
+          <p className="text-xs text-gray-400">بیزنس‌متر نسخه ۱.۰.۰</p>
         </div>
       </div>
     </div>

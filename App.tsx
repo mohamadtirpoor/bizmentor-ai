@@ -1,23 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ChatInterface from './components/ChatInterface';
-import LiveVoiceInterface from './components/LiveVoiceInterface';
 import PricingPlans from './components/PricingPlans';
 import PaymentPage from './components/PaymentPage';
 import AdminPanel from './components/AdminPanel';
 import AdminLoginModal from './components/AdminLoginModal';
-import { MessageSquare, Mic, Briefcase, CreditCard, ShieldCheck } from 'lucide-react';
-import { Star, Zap, Crown } from 'lucide-react';
+import AuthModal from './components/AuthModal';
+import ProfileModal from './components/ProfileModal';
+import { 
+  MessageSquare, 
+  Briefcase, 
+  CreditCard, 
+  ShieldCheck,
+  Star,
+  Zap,
+  Crown,
+  Plus,
+  Sun,
+  Moon,
+  User,
+  Menu,
+  X
+} from 'lucide-react';
+
+interface ChatHistory {
+  id: string;
+  title: string;
+  messages: any[];
+  createdAt: Date;
+}
 
 const INITIAL_PLANS = [
   {
     id: 'pro',
-    name: 'حرفه‌ای (Pro)',
+    name: 'حرفه‌ای',
     price: '۲۹۹,۰۰۰',
     period: 'ماهانه',
     icon: Star,
     color: 'text-blue-400',
-    borderColor: 'border-blue-500/30',
-    shadowColor: 'shadow-blue-500/20',
     features: [
       'دسترسی به چت هوشمند',
       'تحلیل‌های استاندارد کسب‌وکار',
@@ -27,66 +46,77 @@ const INITIAL_PLANS = [
   },
   {
     id: 'pro-plus',
-    name: 'پرو پلاس (+Pro)',
+    name: 'پرو پلاس',
     price: '۶۹۹,۰۰۰',
     period: 'ماهانه',
     icon: Zap,
     color: 'text-purple-400',
-    borderColor: 'border-purple-500/50',
-    shadowColor: 'shadow-purple-500/40',
     isPopular: true,
     features: [
-      'همه امکانات پلن Pro',
-      'مدل متفکر (Gemini 3 Pro)',
-      'تحقیق بازار (Search Grounding)',
+      'همه امکانات پلن حرفه‌ای',
+      'مدل پیشرفته بیزنس‌متر',
+      'تحقیق بازار',
       'پاسخ‌دهی سریع‌تر',
-      'خروجی فایل PDF برنامه'
+      'خروجی PDF'
     ]
   },
   {
     id: 'platinum',
-    name: 'پلاتینیوم (Platinum)',
+    name: 'پلاتینیوم',
     price: '۱,۴۹۰,۰۰۰',
     period: 'ماهانه',
     icon: Crown,
     color: 'text-amber-400',
-    borderColor: 'border-amber-500/30',
-    shadowColor: 'shadow-amber-500/20',
     features: [
-      'همه امکانات پلن Pro+',
-      'مکالمه صوتی زنده (Live API)',
-      'تحلیل‌های عمیق نامحدود',
-      'مشاور اختصاصی AI',
-      'پشتیبانی ۲۴/۷ VIP'
+      'همه امکانات پلن پرو پلاس',
+      'مکالمه صوتی زنده',
+      'تحلیل‌های نامحدود',
+      'مشاور اختصاصی',
+      'پشتیبانی VIP'
     ]
   }
 ];
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'chat' | 'voice' | 'pricing' | 'admin'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'pricing' | 'admin'>('chat');
   const [paymentPlan, setPaymentPlan] = useState<any>(null);
   const [plans, setPlans] = useState(INITIAL_PLANS);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [chatKey, setChatKey] = useState(0);
+  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  
+  // User state
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userData, setUserData] = useState<{ name: string; email: string } | null>(null);
+  const [hasPremium, setHasPremium] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
-  // Check if user is admin on mount
-  React.useEffect(() => {
+  useEffect(() => {
     const adminStatus = localStorage.getItem('isAdmin') === 'true';
+    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const storedUser = localStorage.getItem('userData');
+    const premium = localStorage.getItem('hasPremium') === 'true';
+    const savedTheme = localStorage.getItem('darkMode') === 'true';
+    const savedChats = localStorage.getItem('chatHistory');
+    
     setIsAdmin(adminStatus);
-  }, []);
-
-  const handleTabChange = (tab: 'chat' | 'voice' | 'pricing' | 'admin') => {
-    // Check if trying to access admin panel
-    if (tab === 'admin' && !isAdmin) {
-      setShowAdminLogin(true);
-      return;
+    setDarkMode(savedTheme);
+    
+    if (loggedIn && storedUser) {
+      setIsLoggedIn(true);
+      setUserData(JSON.parse(storedUser));
+      setHasPremium(premium);
     }
     
-    setActiveTab(tab);
-    if (tab !== 'pricing') {
-      setPaymentPlan(null); // Reset payment flow if switching tabs
+    if (savedChats) {
+      setChatHistory(JSON.parse(savedChats));
     }
-  };
+  }, []);
 
   const handleAdminLogin = (username: string, password: string) => {
     if (username === 'mohamad' && password === 'mohamad.tir1383') {
@@ -105,101 +135,392 @@ const App: React.FC = () => {
     setActiveTab('chat');
   };
 
+  const toggleTheme = () => {
+    setDarkMode(!darkMode);
+    localStorage.setItem('darkMode', (!darkMode).toString());
+  };
+
+  const handleNewChat = () => {
+    const newChatId = Date.now().toString();
+    setActiveChatId(newChatId);
+    setChatKey(prev => prev + 1);
+    setActiveTab('chat');
+  };
+
+  const handleSaveChat = (messages: any[], title: string) => {
+    if (messages.length === 0) return;
+    
+    const chatId = activeChatId || Date.now().toString();
+    const existingIndex = chatHistory.findIndex(c => c.id === chatId);
+    
+    let newHistory: ChatHistory[];
+    if (existingIndex >= 0) {
+      newHistory = [...chatHistory];
+      newHistory[existingIndex] = { ...newHistory[existingIndex], messages, title };
+    } else {
+      const newChat: ChatHistory = {
+        id: chatId,
+        title: title || 'چت جدید',
+        messages,
+        createdAt: new Date()
+      };
+      newHistory = [newChat, ...chatHistory];
+    }
+    
+    setChatHistory(newHistory);
+    setActiveChatId(chatId);
+    localStorage.setItem('chatHistory', JSON.stringify(newHistory));
+  };
+
+  const handleSelectChat = (chat: ChatHistory) => {
+    setActiveChatId(chat.id);
+    setChatKey(prev => prev + 1);
+    setActiveTab('chat');
+  };
+
+  const handleAuthSuccess = (user: { name: string; email: string }) => {
+    setIsLoggedIn(true);
+    setUserData(user);
+    localStorage.setItem('isLoggedIn', 'true');
+    localStorage.setItem('userData', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setUserData(null);
+    setHasPremium(false);
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('hasPremium');
+  };
+
+  const currentChat = chatHistory.find(c => c.id === activeChatId);
+
   return (
-    <div className="h-screen w-screen flex flex-col bg-black text-gray-100 overflow-hidden font-['Vazirmatn']">
+    <div className={`h-screen w-screen flex overflow-hidden font-['Vazirmatn'] ${
+      darkMode 
+        ? 'bg-[#0a0a0f] text-white' 
+        : 'bg-white text-gray-800'
+    }`}>
       
-      {/* Admin Login Modal */}
       {showAdminLogin && (
         <AdminLoginModal 
           onClose={() => setShowAdminLogin(false)}
           onLogin={handleAdminLogin}
+          darkMode={darkMode}
         />
       )}
 
-      {/* Header */}
-      <header className="h-14 sm:h-16 flex-none flex items-center justify-between px-3 sm:px-6 border-b border-white/10 bg-black/50 backdrop-blur-md z-50">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.5)]">
-            <Briefcase className="text-white w-4 h-4 sm:w-6 sm:h-6" />
-          </div>
-          <div className="hidden xs:block">
-            <h1 className="text-base sm:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-white">
-              بیزنس‌متر
-            </h1>
-            <p className="text-[8px] sm:text-[10px] text-gray-400 tracking-wider">مشاور هوشمند کسب‌وکار</p>
+      {showAuthModal && (
+        <AuthModal 
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={handleAuthSuccess}
+          initialMode="register"
+          darkMode={darkMode}
+        />
+      )}
+
+      {showProfileModal && userData && (
+        <ProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          userData={userData}
+          hasPremium={hasPremium}
+          freeMessagesUsed={0}
+          onUpdateProfile={(data) => {
+            setUserData(data);
+            localStorage.setItem('userData', JSON.stringify(data));
+          }}
+          onLogout={handleLogout}
+          darkMode={darkMode}
+        />
+      )}
+
+      {/* Mobile Sidebar Overlay */}
+      {showMobileSidebar && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowMobileSidebar(false)} />
+          <aside className={`absolute right-0 top-0 h-full w-72 flex flex-col ${
+            darkMode 
+              ? 'bg-[#0d0d15]' 
+              : 'bg-white'
+          }`}>
+            {/* Header */}
+            <div className={`p-4 flex items-center justify-between ${darkMode ? 'shadow-[0_2px_10px_rgba(139,92,246,0.1)]' : 'shadow-sm'}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center">
+                  <Briefcase className="text-white w-5 h-5" />
+                </div>
+                <div>
+                  <h1 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</h1>
+                  <p className={`text-[10px] ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>مشاور هوشمند کسب‌وکار</p>
+                </div>
+              </div>
+              <button onClick={() => setShowMobileSidebar(false)} className={`p-2 rounded-lg ${darkMode ? 'text-gray-400 hover:bg-purple-500/20' : 'text-gray-500 hover:bg-gray-100'}`}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* New Chat Button */}
+            <div className="p-3">
+              <button
+                onClick={() => { handleNewChat(); setShowMobileSidebar(false); }}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all ${
+                  darkMode 
+                    ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30' 
+                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                }`}
+              >
+                <Plus className="w-5 h-5" />
+                چت جدید
+              </button>
+            </div>
+
+            {/* Recent Chats */}
+            <div className="flex-1 p-3 overflow-y-auto">
+              <p className={`px-4 py-2 text-xs font-medium ${darkMode ? 'text-purple-400/60' : 'text-gray-500'}`}>گفتگوهای اخیر</p>
+              <div className="space-y-1">
+                {chatHistory.length === 0 ? (
+                  <p className={`px-4 py-2 text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>هنوز گفتگویی ندارید</p>
+                ) : (
+                  chatHistory.slice(0, 10).map((chat) => (
+                    <button
+                      key={chat.id}
+                      onClick={() => { handleSelectChat(chat); setShowMobileSidebar(false); }}
+                      className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all text-right ${
+                        activeChatId === chat.id
+                          ? darkMode 
+                            ? 'bg-purple-500/20 text-purple-300' 
+                            : 'bg-purple-100 text-purple-700'
+                          : darkMode 
+                            ? 'text-gray-400 hover:bg-purple-500/10' 
+                            : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <MessageSquare className={`w-4 h-4 flex-shrink-0 ${darkMode ? 'text-purple-500' : 'text-gray-400'}`} />
+                      <span className="truncate">{chat.title}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* User Account */}
+            {isLoggedIn && userData && (
+              <div className={`p-3 ${darkMode ? 'shadow-[0_-2px_10px_rgba(139,92,246,0.1)]' : 'shadow-[0_-2px_10px_rgba(0,0,0,0.05)]'}`}>
+                <button
+                  onClick={() => { setShowProfileModal(true); setShowMobileSidebar(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                    darkMode ? 'text-gray-300 hover:bg-purple-500/10' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center text-white text-sm font-bold">
+                    {userData.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 text-right">
+                    <p className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-800'}`}>{userData.name}</p>
+                    <p className={`text-xs ${darkMode ? 'text-purple-400/60' : 'text-gray-400'}`}>
+                      {hasPremium ? 'اشتراک فعال' : 'بدون اشتراک'}
+                    </p>
+                  </div>
+                </button>
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
+
+      {/* Sidebar - Desktop */}
+      <aside className={`hidden lg:flex w-64 flex-col ${
+        darkMode 
+          ? 'bg-[#0d0d15] shadow-[2px_0_15px_rgba(139,92,246,0.05)]' 
+          : 'bg-gray-50/50 shadow-[2px_0_15px_rgba(0,0,0,0.05)]'
+      }`}>
+        {/* Logo + New Chat */}
+        <div className={`p-4 ${darkMode ? 'shadow-[0_2px_10px_rgba(139,92,246,0.1)]' : 'shadow-sm'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center">
+                <Briefcase className="text-white w-5 h-5" />
+              </div>
+              <div>
+                <h1 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</h1>
+                <p className={`text-[10px] ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>مشاور هوشمند کسب‌وکار</p>
+              </div>
+            </div>
+            <button
+              onClick={handleNewChat}
+              className={`p-2 rounded-lg transition-all ${
+                darkMode 
+                  ? 'hover:bg-purple-500/20 text-purple-400 hover:text-purple-300' 
+                  : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
+              }`}
+              title="چت جدید"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <nav className="flex items-center gap-0.5 sm:gap-1 bg-white/5 p-0.5 sm:p-1 rounded-full border border-white/10">
+        {/* Recent Chats */}
+        <div className="flex-1 p-3 overflow-y-auto">
+          <p className={`px-4 py-2 text-xs font-medium ${darkMode ? 'text-purple-400/60' : 'text-gray-500'}`}>گفتگوهای اخیر</p>
+          <div className="space-y-1">
+            {chatHistory.length === 0 ? (
+              <p className={`px-4 py-2 text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>هنوز گفتگویی ندارید</p>
+            ) : (
+              chatHistory.slice(0, 10).map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => handleSelectChat(chat)}
+                  className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all text-right ${
+                    activeChatId === chat.id
+                      ? darkMode 
+                        ? 'bg-purple-500/20 text-purple-300' 
+                        : 'bg-purple-100 text-purple-700'
+                      : darkMode 
+                        ? 'text-gray-400 hover:bg-purple-500/10' 
+                        : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <MessageSquare className={`w-4 h-4 flex-shrink-0 ${darkMode ? 'text-purple-500' : 'text-gray-400'}`} />
+                  <span className="truncate">{chat.title}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* User Account */}
+        {isLoggedIn && userData && (
+          <div className={`p-3 ${darkMode ? 'shadow-[0_-2px_10px_rgba(139,92,246,0.1)]' : 'shadow-[0_-2px_10px_rgba(0,0,0,0.05)]'}`}>
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                darkMode
+                  ? 'text-gray-300 hover:bg-purple-500/10'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center text-white text-sm font-bold">
+                {userData.name.charAt(0)}
+              </div>
+              <div className="flex-1 text-right">
+                <p className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-800'}`}>{userData.name}</p>
+                <p className={`text-xs ${darkMode ? 'text-purple-400/60' : 'text-gray-400'}`}>
+                  {hasPremium ? 'اشتراک فعال' : 'بدون اشتراک'}
+                </p>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Admin Button */}
+        <div className="p-3">
           <button
-            onClick={() => handleTabChange('chat')}
-            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
-              activeTab === 'chat' 
-                ? 'bg-purple-600/80 text-white shadow-lg' 
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">گفتگو</span>
-          </button>
-          <button
-            onClick={() => handleTabChange('voice')}
-            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all opacity-50 cursor-not-allowed ${
-              activeTab === 'voice' 
-                ? 'bg-purple-600/80 text-white shadow-lg' 
-                : 'text-gray-400'
-            }`}
-            disabled
-            title="قابلیت صوتی در دسترس نیست"
-          >
-            <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">صوتی</span>
-          </button>
-          <button
-            onClick={() => handleTabChange('pricing')}
-            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
-              activeTab === 'pricing' 
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg' 
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">اشتراک</span>
-          </button>
-          <div className="w-px h-5 sm:h-6 bg-white/10 mx-0.5 sm:mx-1 hidden sm:block"></div>
-          <button
-            onClick={() => {
-              if (isAdmin) {
-                handleTabChange('admin');
-              } else {
-                setShowAdminLogin(true);
-              }
-            }}
-            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
+            onClick={() => isAdmin ? setActiveTab('admin') : setShowAdminLogin(true)}
+            className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
               activeTab === 'admin' 
-                ? 'bg-red-600/80 text-white shadow-lg' 
-                : 'text-gray-500 hover:text-red-400 hover:bg-white/5'
+                ? 'bg-red-500/20 text-red-400' 
+                : darkMode
+                  ? 'text-gray-500 hover:bg-purple-500/10'
+                  : 'text-gray-500 hover:bg-gray-100'
             }`}
-            title="پنل مدیریت"
           >
-            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <ShieldCheck className="w-4 h-4" />
+            پنل مدیریت
           </button>
-        </nav>
-      </header>
+        </div>
+      </aside>
 
       {/* Main Content */}
-      <main className="flex-1 relative flex flex-col overflow-hidden min-h-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/20 via-black to-black pointer-events-none" />
-        
-        <div className="relative flex-1 h-full w-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className={`h-14 flex items-center justify-between px-4 ${
+          darkMode 
+            ? 'bg-[#0a0a0f]' 
+            : 'bg-gray-50'
+        }`}>
+          {/* Mobile Logo + Menu */}
+          <div className="flex items-center gap-2 lg:hidden">
+            <button
+              onClick={() => setShowMobileSidebar(true)}
+              className={`p-1.5 rounded-lg transition-all ${
+                darkMode 
+                  ? 'hover:bg-purple-500/20 text-purple-400' 
+                  : 'hover:bg-gray-100 text-gray-500'
+              }`}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center">
+              <Briefcase className="text-white w-4 h-4" />
+            </div>
+            <span className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</span>
+          </div>
+
+          {/* Desktop - Empty space */}
+          <div className="hidden lg:flex"></div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className={`flex items-center p-1 rounded-full transition-all ${
+                darkMode 
+                  ? 'bg-purple-500/20' 
+                  : 'bg-gray-200'
+              }`}
+            >
+              <div className={`p-1.5 rounded-full transition-all ${
+                !darkMode ? 'bg-white shadow' : ''
+              }`}>
+                <Sun className={`w-4 h-4 ${!darkMode ? 'text-amber-500' : 'text-gray-500'}`} />
+              </div>
+              <div className={`p-1.5 rounded-full transition-all ${
+                darkMode ? 'bg-purple-600 shadow' : ''
+              }`}>
+                <Moon className={`w-4 h-4 ${darkMode ? 'text-white' : 'text-gray-400'}`} />
+              </div>
+            </button>
+
+            {/* User Account - Mobile */}
+            {isLoggedIn && userData && (
+              <button
+                onClick={() => setShowProfileModal(true)}
+                className="lg:hidden w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center text-white text-sm font-bold"
+              >
+                {userData.name.charAt(0)}
+              </button>
+            )}
+
+            {/* Buy Subscription */}
+            <button
+              onClick={() => setActiveTab('pricing')}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-all"
+            >
+              <CreditCard className="w-4 h-4" />
+              <span className="hidden sm:inline">خرید اشتراک</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <main className={`flex-1 overflow-hidden ${darkMode ? 'bg-[#0a0a0f]' : 'bg-gray-50'}`}>
           {activeTab === 'chat' && (
             <ChatInterface 
+              key={chatKey}
               onNavigateToPricing={() => setActiveTab('pricing')}
+              darkMode={darkMode}
+              isLoggedIn={isLoggedIn}
+              hasPremium={hasPremium}
+              onRequestAuth={() => setShowAuthModal(true)}
+              initialMessages={currentChat?.messages}
+              onSaveChat={handleSaveChat}
             />
           )}
-          
-          {activeTab === 'voice' && <LiveVoiceInterface />}
           
           {activeTab === 'pricing' && (
             paymentPlan ? (
@@ -207,23 +528,23 @@ const App: React.FC = () => {
                 plan={paymentPlan}
                 onBack={() => setPaymentPlan(null)}
                 onSuccess={() => {
-                  // Activate premium after successful payment
                   localStorage.setItem('hasPremium', 'true');
+                  setHasPremium(true);
                   setPaymentPlan(null);
                   setActiveTab('chat');
                 }}
+                darkMode={darkMode}
               />
             ) : (
-              <PricingPlans plans={plans} onSelectPlan={setPaymentPlan} />
+              <PricingPlans plans={plans} onSelectPlan={setPaymentPlan} darkMode={darkMode} />
             )
           )}
 
           {activeTab === 'admin' && isAdmin && (
-            <AdminPanel plans={plans} setPlans={setPlans} onLogout={handleAdminLogout} />
+            <AdminPanel plans={plans} setPlans={setPlans} onLogout={handleAdminLogout} darkMode={darkMode} />
           )}
-        </div>
-      </main>
-
+        </main>
+      </div>
     </div>
   );
 };
