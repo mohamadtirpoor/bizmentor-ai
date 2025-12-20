@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import OpenAI from 'openai';
 import { db, users, chats, messages } from './db';
 import { eq, desc, count, sql } from 'drizzle-orm';
 
@@ -8,6 +9,50 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// ============ AI API CONFIG ============
+const AI_CONFIG = {
+  baseURL: 'https://ai.liara.ir/api/6946d394731abb305a4559c1/v1',
+  apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiI2OTQ2ZDNkOWRjNTc3Zjg1ZTc0OTAzZTEiLCJ0eXBlIjoiYWlfa2V5IiwiaWF0IjoxNzY2MjQ5NDMzfQ.CiexmFC6YFOTc7CfHLBGW77SMLcaD9kQ22wKg4t6_Pc',
+  model: 'google/gemini-3-pro-preview'
+};
+
+const openaiClient = new OpenAI({
+  baseURL: AI_CONFIG.baseURL,
+  apiKey: AI_CONFIG.apiKey,
+});
+
+// ============ AI CHAT PROXY ============
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { messages: chatMessages } = req.body;
+    
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const stream = await openaiClient.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: chatMessages,
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 4096,
+    });
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      }
+    }
+    
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (error: any) {
+    console.error('AI Chat error:', error);
+    res.status(500).json({ error: error?.message || 'خطا در ارتباط با AI' });
+  }
+});
 
 // ============ USER ROUTES ============
 

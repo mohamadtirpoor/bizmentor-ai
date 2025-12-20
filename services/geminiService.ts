@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import { ChatMode, Message, MessageRole } from "../types";
 
 const SYSTEM_INSTRUCTION = `شما یک چت‌بات حرفه‌ای مشاوره کسب‌وکار هستید با نام «بیزنس‌متر».
@@ -32,45 +31,22 @@ const SYSTEM_INSTRUCTION = `شما یک چت‌بات حرفه‌ای مشاور
 ❌ محدودیت‌ها:
 جواب مبهم نده. جواب انگیزشی کلیشه‌ای نده. «بستگی دارد» نگو. تکرار متن کاربر ممنوع. راهکار غیرواقعی نده.`;
 
-// ============================================
-// تنظیمات API - لیارا GPT-4o-mini
-// ============================================
-const API_CONFIG = {
-  baseURL: 'https://ai.liara.ir/api/69357177dc577f85e72ed001/v1',
-  apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiI2OTM1NzFhYmRjNTc3Zjg1ZTcyZWQwNDIiLCJ0eXBlIjoiYWlfa2V5IiwiaWF0IjoxNzY1MTEwMTg3fQ.QFXJ9YAk4-fV3QKXmpU4UZQWp9SE1QoN9JHkegGryO4',
-  model: 'openai/gpt-4o-mini'
-};
-// ============================================
-
-const openai = new OpenAI({
-  baseURL: API_CONFIG.baseURL,
-  apiKey: API_CONFIG.apiKey,
-  dangerouslyAllowBrowser: true
-});
-
 export const streamChatResponse = async (
   history: Message[],
   newMessage: string,
   _mode: ChatMode,
   onChunk: (text: string) => void,
-  _onGrounding: (chunks: any[]) => void
+  _onGrounding: (chunks: any[]) => void,
+  expertPrompt?: string
 ) => {
-  
-  // Check if API is configured
-  if (API_CONFIG.apiKey === 'YOUR_API_KEY' || API_CONFIG.baseURL === 'YOUR_API_BASE_URL') {
-    onChunk('⚠️ **API تنظیم نشده است**\n\nلطفاً فایل `services/geminiService.ts` را باز کنید و تنظیمات API را وارد کنید.');
-    return;
-  }
+  const systemContent = expertPrompt 
+    ? `${expertPrompt}\n\nهمچنین این قوانین کلی را رعایت کن:\n${SYSTEM_INSTRUCTION}`
+    : SYSTEM_INSTRUCTION;
 
-  // Format history for OpenAI API
   const messages: any[] = [
-    {
-      role: 'system',
-      content: SYSTEM_INSTRUCTION
-    }
+    { role: 'system', content: systemContent }
   ];
 
-  // Add conversation history
   history
     .filter(m => m.role !== MessageRole.SYSTEM)
     .forEach(m => {
@@ -80,35 +56,48 @@ export const streamChatResponse = async (
       });
     });
 
-  // Add the new user message
-  messages.push({
-    role: 'user',
-    content: newMessage
-  });
+  messages.push({ role: 'user', content: newMessage });
 
   try {
-    const stream = await openai.chat.completions.create({
-      model: API_CONFIG.model,
-      messages: messages,
-      stream: true,
-      temperature: 0.7,
-      max_tokens: 4096,
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages })
     });
 
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content;
-      if (content) {
-        onChunk(content);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) throw new Error('No reader');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              onChunk(parsed.content);
+            }
+          } catch {}
+        }
       }
     }
   } catch (error: any) {
     console.error("Error in chat stream:", error);
-    const errorMessage = error?.message || 'خطای ناشناخته';
-    onChunk(`\n\n*خطایی در ارتباط رخ داده است: ${errorMessage}*\n\nلطفاً دوباره تلاش کنید.`);
+    onChunk(`\n\n*خطایی رخ داده: ${error?.message}*`);
   }
 };
 
-export const getLiveClient = () => {
-  console.warn('Live voice API is not available');
-  return null;
-};
+export const getLiveClient = () => null;
