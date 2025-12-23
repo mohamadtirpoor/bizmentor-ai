@@ -12,9 +12,9 @@ const PORT = process.env.PORT || 3000;
 const DIST_DIR = join(__dirname, 'dist');
 
 const AI_CONFIG = {
-  baseURL: 'https://ai.liara.ir/api/6946d394731abb305a4559c1/v1',
-  apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiI2OTQ2ZDNkOWRjNTc3Zjg1ZTc0OTAzZTEiLCJ0eXBlIjoiYWlfa2V5IiwiaWF0IjoxNzY2MjQ5NDMzfQ.CiexmFC6YFOTc7CfHLBGW77SMLcaD9kQ22wKg4t6_Pc',
-  model: 'google/gemini-3-pro-preview'
+  baseURL: 'https://ai.liara.ir/api/694a3eadb933cecf2a4523fe/v1',
+  apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiI2OTRhM2ZhOGQ4MjlhMzE3YzJjOWJmN2UiLCJ0eXBlIjoiYWlfa2V5IiwiaWF0IjoxNzY2NDczNjQwfQ.BBeyIBbRiB2O80WPpCo64tG157iC5wpBLO30uVqN32o',
+  model: 'openai/gpt-5-nano'
 };
 
 const mimeTypes = {
