@@ -83,7 +83,7 @@ const App: React.FC = () => {
   const [plans, setPlans] = useState(INITIAL_PLANS);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   const [chatKey, setChatKey] = useState(0);
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -101,11 +101,12 @@ const App: React.FC = () => {
     const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
     const storedUser = localStorage.getItem('userData');
     const premium = localStorage.getItem('hasPremium') === 'true';
-    const savedTheme = localStorage.getItem('darkMode') === 'true';
+    const savedTheme = localStorage.getItem('darkMode');
     const savedChats = localStorage.getItem('chatHistory');
     
     setIsAdmin(adminStatus);
-    setDarkMode(savedTheme);
+    // اگر savedTheme وجود نداشت، پیش‌فرض true (dark) است
+    setDarkMode(savedTheme === null ? true : savedTheme === 'true');
     
     if (loggedIn && storedUser) {
       setIsLoggedIn(true);
