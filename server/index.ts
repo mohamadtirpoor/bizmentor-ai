@@ -11,15 +11,9 @@ app.use(cors());
 app.use(express.json());
 
 // ============ AI API CONFIG ============
-const AI_CONFIG = {
-  baseURL: 'https://ai.liara.ir/api/6946d394731abb305a4559c1/v1',
-  apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiI2OTQ2ZDNkOWRjNTc3Zjg1ZTc0OTAzZTEiLCJ0eXBlIjoiYWlfa2V5IiwiaWF0IjoxNzY2MjQ5NDMzfQ.CiexmFC6YFOTc7CfHLBGW77SMLcaD9kQ22wKg4t6_Pc',
-  model: 'google/gemini-3-pro-preview'
-};
-
-const openaiClient = new OpenAI({
-  baseURL: AI_CONFIG.baseURL,
-  apiKey: AI_CONFIG.apiKey,
+const openai = new OpenAI({
+  baseURL: 'https://ai.liara.ir/api/694a3eadb933cecf2a4523fe/v1',
+  apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiI2OTRhM2ZhOGQ4MjlhMzE3YzJjOWJmN2UiLCJ0eXBlIjoiYWlfa2V5IiwiaWF0IjoxNzY2NDczNjQwfQ.BBeyIBbRiB2O80WPpCo64tG157iC5wpBLO30uVqN32o',
 });
 
 // ============ AI CHAT PROXY ============
@@ -31,8 +25,8 @@ app.post('/api/chat', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    const stream = await openaiClient.chat.completions.create({
-      model: AI_CONFIG.model,
+    const stream = await openai.chat.completions.create({
+      model: 'openai/gpt-5-nano',
       messages: chatMessages,
       stream: true,
       temperature: 0.7,
