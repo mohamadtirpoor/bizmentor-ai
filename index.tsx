@@ -14,7 +14,7 @@ const tracker = new Tracker({
   ingestPoint: "https://openreplay.doctordaraei.com/ingest",
   __DISABLE_SECURE_MODE: false,
 });
-tracker.start();
+tracker.start();  
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

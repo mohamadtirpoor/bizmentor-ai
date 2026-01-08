@@ -93,6 +93,7 @@ function ChatInterface({
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [showExpertMenu, setShowExpertMenu] = useState(false);
   const [selectedExpert, setSelectedExpert] = useState<ExpertMode | null>(null);
+  const [messageExperts, setMessageExperts] = useState<Record<string, ExpertMode | null>>({});
   const [autoScroll, setAutoScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -153,6 +154,7 @@ function ChatInterface({
 
     const botMsgId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, { id: botMsgId, role: MessageRole.MODEL, text: '', isThinking: true }]);
+    setMessageExperts(prev => ({ ...prev, [botMsgId]: selectedExpert }));
 
     try {
       let fullText = '';
@@ -265,20 +267,34 @@ function ChatInterface({
           </div>
         ) : (
           <div className="max-w-3xl mx-auto p-4 space-y-6">
-            {messages.map((msg) => (
+            {messages.map((msg) => {
+              const expert = messageExperts[msg.id];
+              return (
               <div key={msg.id} className={`flex gap-3 ${msg.role === MessageRole.USER ? 'flex-row-reverse' : ''}`}>
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                   msg.role === MessageRole.USER
                     ? (darkMode ? 'bg-purple-500/20' : 'bg-gray-200')
-                    : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                    : expert 
+                      ? (darkMode ? 'bg-purple-500/20' : 'bg-gray-100')
+                      : 'bg-gradient-to-br from-purple-500 to-purple-600'
                 }`}>
                   {msg.role === MessageRole.USER ? (
                     <User className={`w-4 h-4 ${darkMode ? 'text-purple-300' : 'text-gray-600'}`} />
+                  ) : expert ? (
+                    <ExpertIcon iconName={expert.iconName} className={`w-4 h-4 ${expert.color}`} />
                   ) : (
                     <Bot className="w-4 h-4 text-white" />
                   )}
                 </div>
                 <div className={`flex-1 ${msg.role === MessageRole.USER ? 'text-left' : 'text-right'}`}>
+                  {msg.role === MessageRole.MODEL && expert && (
+                    <div className={`inline-flex items-center gap-1.5 mb-1 px-2 py-0.5 rounded-full text-xs ${
+                      darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-600'
+                    }`}>
+                      <ExpertIcon iconName={expert.iconName} className={`w-3 h-3 ${expert.color}`} />
+                      {expert.name}
+                    </div>
+                  )}
                   <div className={`inline-block max-w-[90%] p-4 rounded-2xl ${
                     msg.role === MessageRole.USER
                       ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-tr-none'
@@ -299,7 +315,7 @@ function ChatInterface({
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -307,6 +323,30 @@ function ChatInterface({
 
       <div className="absolute bottom-0 left-0 right-0 p-4">
         <div className="max-w-3xl mx-auto">
+          {/* Expert Buttons - Horizontal Scrollable */}
+          <div className="mb-3 overflow-x-auto scrollbar-hide">
+            <div className="flex gap-2 pb-2" style={{ direction: 'rtl' }}>
+              {EXPERT_MODES.map((expert) => (
+                <button
+                  key={expert.id}
+                  onClick={() => setSelectedExpert(selectedExpert?.id === expert.id ? null : expert)}
+                  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    selectedExpert?.id === expert.id
+                      ? (darkMode 
+                          ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' 
+                          : 'bg-purple-600 text-white shadow-lg shadow-purple-500/30')
+                      : (darkMode 
+                          ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border border-purple-500/30' 
+                          : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200')
+                  }`}
+                >
+                  <ExpertIcon iconName={expert.iconName} className={`w-4 h-4 ${selectedExpert?.id === expert.id ? 'text-white' : expert.color}`} />
+                  <span>{expert.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {selectedExpert && (
             <div className={`flex items-center justify-between mb-2 px-4 py-2 rounded-2xl ${
               darkMode ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-purple-100 border border-purple-200'
@@ -315,6 +355,9 @@ function ChatInterface({
                 <ExpertIcon iconName={selectedExpert.iconName} className={`w-4 h-4 ${selectedExpert.color}`} />
                 <span className={`text-sm font-medium ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>
                   {selectedExpert.name}
+                </span>
+                <span className={`text-xs ${darkMode ? 'text-purple-400/60' : 'text-purple-500'}`}>
+                  - {selectedExpert.description}
                 </span>
               </div>
               <button
@@ -331,56 +374,6 @@ function ChatInterface({
               ? 'bg-white/5 border-purple-500/30 shadow-[0_8px_32px_rgba(139,92,246,0.2)]'
               : 'bg-white/80 border-gray-200 shadow-[0_8px_32px_rgba(0,0,0,0.1)]'
           }`}>
-            <button
-              onClick={() => setShowExpertMenu(!showExpertMenu)}
-              className={`p-2.5 rounded-xl transition-all ${
-                darkMode ? 'hover:bg-purple-500/20 text-purple-400' : 'hover:bg-gray-100 text-gray-500'
-              }`}
-            >
-              <MoreHorizontal className="w-5 h-5" />
-            </button>
-
-            {showExpertMenu && (
-              <div className={`absolute bottom-full right-0 mb-3 w-72 rounded-2xl shadow-2xl overflow-hidden z-50 ${
-                darkMode ? 'bg-[#12121a] border border-purple-500/30' : 'bg-white border border-gray-200'
-              }`}>
-                <div className={`p-4 border-b ${darkMode ? 'border-purple-500/20' : 'border-gray-100'}`}>
-                  <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>فیچرهای تخصصی</p>
-                  <p className={`text-xs mt-1 ${darkMode ? 'text-purple-400/60' : 'text-gray-500'}`}>یک متخصص انتخاب کنید</p>
-                </div>
-                {EXPERT_MODES.map((expert) => (
-                  <button
-                    key={expert.id}
-                    onClick={() => {
-                      setSelectedExpert(expert);
-                      setShowExpertMenu(false);
-                    }}
-                    className={`w-full flex items-center gap-3 p-4 text-right transition-all ${
-                      darkMode ? 'hover:bg-purple-500/10' : 'hover:bg-gray-50'
-                    } ${
-                      selectedExpert?.id === expert.id
-                        ? (darkMode ? 'bg-purple-500/20' : 'bg-purple-50')
-                        : ''
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      darkMode ? 'bg-purple-500/20' : 'bg-gray-100'
-                    }`}>
-                      <ExpertIcon iconName={expert.iconName} className={`w-5 h-5 ${expert.color}`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                        {expert.name}
-                      </p>
-                      <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {expert.description}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
             <textarea
               ref={textareaRef}
               value={input}
