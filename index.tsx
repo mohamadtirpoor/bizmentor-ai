@@ -12,6 +12,7 @@ Clarity.init('ux87vyobxr');
 const tracker = new Tracker({
   projectKey: "ABMWUNTeeNqb0iAELqAN",
   ingestPoint: "https://openreplay.doctordaraei.com/ingest",
+  __DISABLE_SECURE_MODE: false,
 });
 tracker.start();
 
