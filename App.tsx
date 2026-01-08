@@ -184,6 +184,8 @@ const App: React.FC = () => {
     setUserData(user);
     localStorage.setItem('isLoggedIn', 'true');
     localStorage.setItem('userData', JSON.stringify(user));
+    setShowAuthModal(false);
+    setActiveTab('chat'); // بعد از ثبت‌نام مستقیم به چت برو
   };
 
   const handleLogout = () => {
