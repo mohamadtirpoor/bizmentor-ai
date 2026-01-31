@@ -12,9 +12,9 @@ const PORT = process.env.PORT || 3000;
 const DIST_DIR = join(__dirname, 'dist');
 
 const AI_CONFIG = {
-  baseURL: 'https://ai.liara.ir/api/694a3eadb933cecf2a4523fe/v1',
-  apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiI2OTRhM2ZhOGQ4MjlhMzE3YzJjOWJmN2UiLCJ0eXBlIjoiYWlfa2V5IiwiaWF0IjoxNzY2NDczNjQwfQ.BBeyIBbRiB2O80WPpCo64tG157iC5wpBLO30uVqN32o',
-  model: 'openai/gpt-5-nano'
+  endpoint: 'https://arvancloudai.ir/gateway/models/Qwen3-30B-A3B/MzngmyQ1gA1LhnhOwlLFW4xAv3F4mH_B-aDTOTJCiCyggiFk4qUOtP-TJ02Vao2geVMmoSTiu2EMHg8HqwJQNzMHr7abTuS3Xy6do9APpuIs-yXdqd_S-s597MXlaLDTiURmaY47xj--xPHdHBtLO3GLcTllV_IIvxS62f7mHyCpQzNQpL66GwbZrwRNyHepubqq9hOIRwNIfpKcUV6i-qZNdxyUROnUkZs7HFbQWuHg90CUsQQP5RZogWFCgE97/v1',
+  apiKey: 'b6a3781c-f36c-5631-939c-b3c1c0230d4b',
+  model: 'Qwen3-30B-A3B'
 };
 
 const mimeTypes = {
@@ -46,17 +46,17 @@ const server = createServer(async (req, res) => {
           messages: messages,
           stream: true,
           temperature: 0.7,
-          max_tokens: 4096
+          max_tokens: 3000
         });
 
-        const url = new URL(AI_CONFIG.baseURL + '/chat/completions');
+        const url = new URL(AI_CONFIG.endpoint + '/chat/completions');
         const options = {
           hostname: url.hostname,
           path: url.pathname,
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${AI_CONFIG.apiKey}`,
+            'Authorization': `apikey ${AI_CONFIG.apiKey}`,
             'Content-Length': Buffer.byteLength(postData)
           }
         };

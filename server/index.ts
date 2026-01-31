@@ -3,6 +3,7 @@ import cors from 'cors';
 import OpenAI from 'openai';
 import { db, users, chats, messages } from './db';
 import { eq, desc, count, sql } from 'drizzle-orm';
+import { loadExpertKnowledge } from './knowledgeService';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -10,40 +11,132 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// ============ AI API CONFIG ============
+// ============ AI API CONFIG (Arvan Cloud) ============
+const ARVAN_ENDPOINT = 'https://arvancloudai.ir/gateway/models/Qwen3-30B-A3B/MzngmyQ1gA1LhnhOwlLFW4xAv3F4mH_B-aDTOTJCiCyggiFk4qUOtP-TJ02Vao2geVMmoSTiu2EMHg8HqwJQNzMHr7abTuS3Xy6do9APpuIs-yXdqd_S-s597MXlaLDTiURmaY47xj--xPHdHBtLO3GLcTllV_IIvxS62f7mHyCpQzNQpL66GwbZrwRNyHepubqq9hOIRwNIfpKcUV6i-qZNdxyUROnUkZs7HFbQWuHg90CUsQQP5RZogWFCgE97/v1';
+const ARVAN_API_KEY = 'b6a3781c-f36c-5631-939c-b3c1c0230d4b';
+
 const openai = new OpenAI({
-  baseURL: 'https://ai.liara.ir/api/694a3eadb933cecf2a4523fe/v1',
-  apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiI2OTRhM2ZhOGQ4MjlhMzE3YzJjOWJmN2UiLCJ0eXBlIjoiYWlfa2V5IiwiaWF0IjoxNzY2NDczNjQwfQ.BBeyIBbRiB2O80WPpCo64tG157iC5wpBLO30uVqN32o',
+  baseURL: ARVAN_ENDPOINT,
+  apiKey: ARVAN_API_KEY,
+  timeout: 60000,
+  maxRetries: 2,
+  defaultHeaders: {
+    'Authorization': `apikey ${ARVAN_API_KEY}`
+  }
 });
 
 // ============ AI CHAT PROXY ============
 app.post('/api/chat', async (req, res) => {
   try {
-    const { messages: chatMessages } = req.body;
+    const { messages: chatMessages, expertId } = req.body;
+    
+    console.log('📨 Received chat request');
+    console.log('Messages count:', chatMessages?.length);
+    console.log('Expert ID:', expertId);
     
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
+    // Load expert knowledge if expertId is provided
+    let enrichedMessages = [...chatMessages];
+    if (expertId) {
+      console.log(`📚 Loading knowledge for expert: ${expertId}`);
+      const knowledge = await loadExpertKnowledge(expertId);
+      if (knowledge) {
+        console.log(`✅ Knowledge loaded: ${knowledge.length} characters`);
+        // Add knowledge to system message
+        const systemMsgIndex = enrichedMessages.findIndex(m => m.role === 'system');
+        if (systemMsgIndex >= 0) {
+          enrichedMessages[systemMsgIndex] = {
+            ...enrichedMessages[systemMsgIndex],
+            content: enrichedMessages[systemMsgIndex].content + '\n\n' + knowledge
+          };
+        }
+      } else {
+        console.log('⚠️ No knowledge found for this expert');
+      }
+    }
+
+    console.log('🚀 Calling Arvan Cloud API...');
+    
     const stream = await openai.chat.completions.create({
-      model: 'openai/gpt-5-nano',
-      messages: chatMessages,
+      model: 'Qwen3-30B-A3B',
+      messages: enrichedMessages,
       stream: true,
       temperature: 0.7,
-      max_tokens: 4096,
+      max_tokens: 3000,
     });
 
+    console.log('✅ Stream created successfully');
+    
+    let chunkCount = 0;
+    let buffer = '';
+    let insideThinkTag = false;
+    
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content;
       if (content) {
-        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        buffer += content;
+        
+        // Process buffer to filter out <think> tags
+        while (true) {
+          if (!insideThinkTag) {
+            // Check if <think> tag starts
+            const thinkStart = buffer.indexOf('<think>');
+            if (thinkStart !== -1) {
+              // Send everything before <think>
+              if (thinkStart > 0) {
+                const beforeThink = buffer.substring(0, thinkStart);
+                chunkCount++;
+                res.write(`data: ${JSON.stringify({ content: beforeThink })}\n\n`);
+              }
+              // Remove everything up to and including <think>
+              buffer = buffer.substring(thinkStart + 7);
+              insideThinkTag = true;
+            } else {
+              // No <think> tag, send buffer if it's substantial
+              if (buffer.length > 50 || buffer.includes('\n')) {
+                chunkCount++;
+                res.write(`data: ${JSON.stringify({ content: buffer })}\n\n`);
+                buffer = '';
+              }
+              break;
+            }
+          } else {
+            // Inside <think> tag, look for </think>
+            const thinkEnd = buffer.indexOf('</think>');
+            if (thinkEnd !== -1) {
+              // Remove everything up to and including </think>
+              buffer = buffer.substring(thinkEnd + 8);
+              insideThinkTag = false;
+            } else {
+              // Still inside think tag, clear buffer and wait for more
+              buffer = '';
+              break;
+            }
+          }
+        }
       }
     }
     
+    // Send any remaining buffer (if not inside think tag)
+    if (buffer.trim() && !insideThinkTag) {
+      chunkCount++;
+      res.write(`data: ${JSON.stringify({ content: buffer })}\n\n`);
+    }
+    
+    console.log(`✅ Stream completed. Sent ${chunkCount} chunks`);
     res.write('data: [DONE]\n\n');
     res.end();
   } catch (error: any) {
-    console.error('AI Chat error:', error);
+    console.error('❌ AI Chat error:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+      type: error?.type
+    });
     res.status(500).json({ error: error?.message || 'خطا در ارتباط با AI' });
   }
 });

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { User, Bot, Sparkles, Star, ArrowUp, MoreHorizontal, Package, Megaphone, PenTool, Users, X, TrendingUp } from 'lucide-react';
+import { User, Bot, Sparkles, Star, ArrowUp, MoreHorizontal, Package, Megaphone, PenTool, Users, X, TrendingUp, DollarSign } from 'lucide-react';
 import { ChatMode, Message, MessageRole } from '../types';
 import { streamChatResponse } from '../services/geminiService';
 
@@ -119,39 +119,39 @@ const EXPERT_MODES: ExpertMode[] = [
 مثل یک VP Sales حرفه‌ای صحبت کن، روی Revenue و Conversion تمرکز کن و راهکارهای عملی ارائه بده.` 
   },
   { 
-    id: 'copywriting', 
-    name: 'مدیر کمپین‌نویسی', 
-    iconName: 'pen', 
-    color: 'text-orange-400', 
-    description: 'نوشتن متن تبلیغاتی', 
-    systemPrompt: `شما یک کپی‌رایتر ارشد و Creative Director با ۲۰ سال تجربه در آژانس‌های تبلیغاتی برتر جهان هستید.
+    id: 'finance', 
+    name: 'مدیر مالی', 
+    iconName: 'dollar', 
+    color: 'text-amber-400', 
+    description: 'مدیریت مالی و بودجه', 
+    systemPrompt: `شما یک مدیر ارشد مالی (CFO) با ۲۰ سال تجربه در شرکت‌های بزرگ و استارتاپ‌ها هستید.
 
 📚 **منابع و چهارچوب‌های مرجع شما:**
-- کتاب "The Copywriter's Handbook" از Robert Bly
-- کتاب "Ogilvy on Advertising" از David Ogilvy
-- کتاب "Hey Whipple, Squeeze This" از Luke Sullivan
-- فریمورک AIDA (Attention, Interest, Desire, Action)
-- فریمورک PAS (Problem, Agitate, Solution)
-- فریمورک 4Ps از Claude Hopkins
-- تکنیک‌های Eugene Schwartz از "Breakthrough Advertising"
-- فرمول BAB (Before, After, Bridge)
+- کتاب "Financial Intelligence" از Karen Berman
+- کتاب "The Lean CFO" از Andy Burrows
+- استانداردهای حسابداری IFRS و GAAP
+- فریمورک Zero-Based Budgeting
+- مدل DCF (Discounted Cash Flow)
+- فریمورک Unit Economics
+- متدولوژی Financial Modeling
+- نسبت‌های مالی کلیدی (ROI, ROE, Current Ratio, Quick Ratio)
 
 🧠 **نحوه تفکر و تحلیل (RAG Style):**
-1. ابتدا مخاطب هدف و Pain Points را شناسایی کن
-2. فریمورک مناسب برای نوع کپی را انتخاب کن
-3. با تکنیک‌های روانشناسی متقاعدسازی بنویس
-4. چندین نسخه برای A/B Testing ارائه بده
+1. ابتدا وضعیت مالی را تحلیل کن (سودآوری، نقدینگی، بدهی)
+2. فریمورک مناسب را انتخاب کن
+3. با اعداد و نسبت‌های مالی پاسخ بده
+4. پیش‌بینی مالی و سناریوهای مختلف ارائه بده
 
 📋 **ساختار پاسخ‌دهی:**
-- 🎯 **تحلیل مخاطب:** [Persona + Pain Points]
-- ✍️ **هدلاین‌های پیشنهادی:** [۳-۵ نسخه]
-- 📝 **بدنه متن:** [با فریمورک مشخص]
-- 🔥 **CTA قدرتمند:** [Call to Action]
-- 🧪 **نسخه‌های A/B:** [برای تست]
-- 💡 **نکات روانشناسی:** [تکنیک‌های متقاعدسازی]
-- 📖 **منبع:** [رفرنس به تکنیک]
+- 🎯 **تحلیل مالی:** [صورت‌های مالی]
+- 📊 **نسبت‌های کلیدی:** [KPIs مالی]
+- 💰 **بودجه‌بندی:** [تخصیص منابع]
+- 📈 **پیش‌بینی:** [Forecasting]
+- ⚠️ **ریسک‌ها:** [تحلیل ریسک]
+- ✅ **توصیه‌ها:** [اقدامات عملی]
+- 📖 **منبع:** [رفرنس به استاندارد/فریمورک]
 
-مثل David Ogilvy فکر کن: "هر کلمه باید بفروشد". کپی‌های تو باید Compelling، Clear و Conversion-focused باشند.` 
+مثل یک CFO حرفه‌ای فکر کن، همه چیز را با اعداد پشتیبانی کن و روی سودآوری و پایداری مالی تمرکز کن.` 
   },
   { 
     id: 'hr', 
@@ -195,7 +195,7 @@ function ExpertIcon({ iconName, className }: { iconName: string; className?: str
     case 'package': return <Package className={className} />;
     case 'megaphone': return <Megaphone className={className} />;
     case 'trending': return <TrendingUp className={className} />;
-    case 'pen': return <PenTool className={className} />;
+    case 'dollar': return <DollarSign className={className} />;
     case 'users': return <Users className={className} />;
     default: return <Package className={className} />;
   }
@@ -301,7 +301,8 @@ function ChatInterface({
           setMessages(prev => prev.map(m => m.id === botMsgId ? { ...m, text: fullText, isThinking: false } : m));
         },
         () => {},
-        selectedExpert?.systemPrompt
+        selectedExpert?.systemPrompt,
+        selectedExpert?.id
       );
       
       const finalMessages = [...newMessages, { id: botMsgId, role: MessageRole.MODEL, text: fullText }];
