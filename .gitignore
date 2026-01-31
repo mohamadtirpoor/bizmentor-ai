@@ -23,5 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 
-# PDF files (temporarily enabled for deployment)
-# Sorce/**/*.pdf
+# PDF files (too large for git, upload manually to server)
+Sorce/**/*.pdf

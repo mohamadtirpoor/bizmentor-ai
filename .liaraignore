@@ -1,0 +1,9 @@
+# Ignore PDF files during deployment (too large)
+Sorce/**/*.pdf
+
+# Ignore development files
+node_modules/
+.git/
+*.log
+.env.local
+.vscode/
