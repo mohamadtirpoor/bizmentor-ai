@@ -43,7 +43,7 @@ export async function loadExpertKnowledge(expertId: string): Promise<string> {
   
   // Check if folder exists
   if (!fs.existsSync(sourcePath)) {
-    console.warn(`Knowledge folder not found: ${sourcePath}`);
+    console.warn(`⚠️ Knowledge folder not found: ${sourcePath} - RAG disabled for ${expertId}`);
     return '';
   }
 

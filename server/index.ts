@@ -4,12 +4,21 @@ import OpenAI from 'openai';
 import { db, users, chats, messages } from './db';
 import { eq, desc, count, sql } from 'drizzle-orm';
 import { loadExpertKnowledge } from './knowledgeService';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// Serve static files in production
+const distPath = join(__dirname, '..', 'dist');
+app.use(express.static(distPath));
 
 // ============ AI API CONFIG (Arvan Cloud) ============
 const ARVAN_ENDPOINT = 'https://arvancloudai.ir/gateway/models/Qwen3-30B-A3B/MzngmyQ1gA1LhnhOwlLFW4xAv3F4mH_B-aDTOTJCiCyggiFk4qUOtP-TJ02Vao2geVMmoSTiu2EMHg8HqwJQNzMHr7abTuS3Xy6do9APpuIs-yXdqd_S-s597MXlaLDTiURmaY47xj--xPHdHBtLO3GLcTllV_IIvxS62f7mHyCpQzNQpL66GwbZrwRNyHepubqq9hOIRwNIfpKcUV6i-qZNdxyUROnUkZs7HFbQWuHg90CUsQQP5RZogWFCgE97/v1';
