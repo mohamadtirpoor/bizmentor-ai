@@ -256,19 +256,12 @@ function ChatInterface({
       onRequestAuth();
       return;
     }
-    if (!hasPremium) {
-      setShowPricingModal(true);
-    }
   }
 
   async function handleSend() {
     if (!input.trim() || isLoading) return;
     if (!isLoggedIn && onRequestAuth) {
       onRequestAuth();
-      return;
-    }
-    if (!hasPremium) {
-      setShowPricingModal(true);
       return;
     }
 
@@ -366,39 +359,10 @@ function ChatInterface({
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-6">
             <img src="/logo/Untitled-1.png" alt="بیزنس‌متر" className="w-16 h-16 rounded-2xl object-contain mb-6" />
-            <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>سلام! من بیزنس‌متر هستم - نسخه جدید</h2>
+            <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>سلام! من بیزنس‌متر هستم</h2>
             <p className={`text-center max-w-md mb-8 ${darkMode ? 'text-purple-300/60' : 'text-gray-500'}`}>
               مشاور هوشمند کسب‌وکار شما. آماده‌ام تا با تحلیل دقیق به رشد بیزینس شما کمک کنم.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
-              {[
-                { title: 'افزایش فروش', desc: 'راهکارهای عملی', query: 'چطور می‌تونم فروشم رو افزایش بدم؟' },
-                { title: 'شروع استارتاپ', desc: 'راهنمای گام به گام', query: 'برای شروع استارتاپ چه کنم؟' },
-                { title: 'بازاریابی دیجیتال', desc: 'استراتژی آنلاین', query: 'چطور بازاریابی دیجیتال انجام بدم؟' },
-                { title: 'مدیریت تیم', desc: 'ساخت تیم موفق', query: 'چطور تیم خوب بسازم؟' }
-              ].map((item, i) => (
-                <button
-                  key={i}
-                  onClick={() => {
-                    if (!isLoggedIn && onRequestAuth) {
-                      onRequestAuth();
-                    } else if (!hasPremium) {
-                      setShowPricingModal(true);
-                    } else {
-                      setInput(item.query);
-                    }
-                  }}
-                  className={`p-4 border rounded-xl text-right transition-all ${
-                    darkMode
-                      ? 'bg-[#12121a] border-purple-500/20 hover:border-purple-500/40 hover:bg-purple-500/5'
-                      : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50'
-                  }`}
-                >
-                  <p className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>{item.title}</p>
-                  <p className={`text-xs mt-1 ${darkMode ? 'text-purple-400/50' : 'text-gray-400'}`}>{item.desc}</p>
-                </button>
-              ))}
-            </div>
           </div>
         ) : (
           <div className="max-w-3xl mx-auto p-4 space-y-6">
@@ -519,7 +483,7 @@ function ChatInterface({
               placeholder="هر چیزی بپرسید..."
               rows={1}
               dir="rtl"
-              readOnly={!isLoggedIn || !hasPremium}
+              readOnly={!isLoggedIn}
               className={`flex-1 bg-transparent border-none resize-none focus:ring-0 focus:outline-none min-h-[24px] max-h-32 text-right text-sm ${
                 darkMode ? 'text-gray-200 placeholder-purple-400/40' : 'text-gray-700 placeholder-gray-400'
               }`}
@@ -527,7 +491,7 @@ function ChatInterface({
             
             <button
               onClick={handleSend}
-              disabled={!input.trim() || isLoading || !isLoggedIn || !hasPremium}
+              disabled={!input.trim() || isLoading || !isLoggedIn}
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 darkMode
                   ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:opacity-90'

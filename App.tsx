@@ -8,16 +8,12 @@ import AuthModal from './components/AuthModal';
 import ProfileModal from './components/ProfileModal';
 import { 
   MessageSquare, 
-  Briefcase, 
-  CreditCard, 
-  ShieldCheck,
   Star,
   Zap,
   Crown,
   Plus,
   Sun,
   Moon,
-  User,
   Menu,
   X
 } from 'lucide-react';
@@ -91,7 +87,7 @@ const App: React.FC = () => {
   // User state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<{ name: string; email: string } | null>(null);
-  const [hasPremium, setHasPremium] = useState(false);
+  const [hasPremium] = useState(true); // همه کاربران دسترسی کامل دارن
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
@@ -100,7 +96,6 @@ const App: React.FC = () => {
     const adminStatus = localStorage.getItem('isAdmin') === 'true';
     const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
     const storedUser = localStorage.getItem('userData');
-    const premium = localStorage.getItem('hasPremium') === 'true';
     const savedTheme = localStorage.getItem('darkMode');
     const savedChats = localStorage.getItem('chatHistory');
     
@@ -111,7 +106,6 @@ const App: React.FC = () => {
     if (loggedIn && storedUser) {
       setIsLoggedIn(true);
       setUserData(JSON.parse(storedUser));
-      setHasPremium(premium);
     }
     
     if (savedChats) {
@@ -191,10 +185,8 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserData(null);
-    setHasPremium(false);
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userData');
-    localStorage.removeItem('hasPremium');
   };
 
   const currentChat = chatHistory.find(c => c.id === activeChatId);
@@ -414,23 +406,6 @@ const App: React.FC = () => {
             </button>
           </div>
         )}
-
-        {/* Admin Button */}
-        <div className="p-3">
-          <button
-            onClick={() => isAdmin ? setActiveTab('admin') : setShowAdminLogin(true)}
-            className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              activeTab === 'admin' 
-                ? 'bg-red-500/20 text-red-400' 
-                : darkMode
-                  ? 'text-gray-500 hover:bg-purple-500/10'
-                  : 'text-gray-500 hover:bg-gray-100'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            پنل مدیریت
-          </button>
-        </div>
       </aside>
 
       {/* Main Content */}
@@ -492,15 +467,6 @@ const App: React.FC = () => {
                 {userData.name.charAt(0)}
               </button>
             )}
-
-            {/* Buy Subscription */}
-            <button
-              onClick={() => setActiveTab('pricing')}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-all"
-            >
-              <CreditCard className="w-4 h-4" />
-              <span className="hidden sm:inline">خرید اشتراک</span>
-            </button>
           </div>
         </header>
 
