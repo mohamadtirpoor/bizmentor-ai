@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# PDF files (too large for git, upload manually to server)
+Sorce/**/*.pdf
