@@ -74,7 +74,7 @@ app.post('/api/chat', async (req, res) => {
       messages: enrichedMessages,
       stream: true,
       temperature: 0.7,
-      max_tokens: 3000,
+      max_tokens: 1000,
     });
 
     console.log('✅ Stream created successfully');
