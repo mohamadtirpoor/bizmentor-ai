@@ -1,0 +1,10 @@
+# بیزنس‌متر - مشاور هوشمند کسب‌وکار
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://businessmeter.ir/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1
