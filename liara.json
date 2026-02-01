@@ -1,7 +1,7 @@
 {
   "app": "bus-metr",
   "platform": "node",
-  "port": 3000,
+  "port": 3001,
   "node": {
     "version": "20"
   }
