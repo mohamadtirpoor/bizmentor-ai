@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import { db, users, chats, messages } from './db';
 import { eq, desc, count, sql } from 'drizzle-orm';
 import { loadExpertKnowledge } from './knowledgeService';
+import { sendVerificationEmail, generateVerificationCode } from './emailService';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -19,6 +20,9 @@ app.use(express.json());
 // Serve static files in production
 const distPath = join(__dirname, '..', 'dist');
 app.use(express.static(distPath));
+
+// Storage موقت برای کدهای تایید (در production باید از Redis استفاده کنی)
+const verificationCodes = new Map<string, { code: string; expiresAt: number }>();
 
 // ============ AI API CONFIG (Arvan Cloud) ============
 const ARVAN_ENDPOINT = 'https://arvancloudai.ir/gateway/models/Qwen3-30B-A3B/MzngmyQ1gA1LhnhOwlLFW4xAv3F4mH_B-aDTOTJCiCyggiFk4qUOtP-TJ02Vao2geVMmoSTiu2EMHg8HqwJQNzMHr7abTuS3Xy6do9APpuIs-yXdqd_S-s597MXlaLDTiURmaY47xj--xPHdHBtLO3GLcTllV_IIvxS62f7mHyCpQzNQpL66GwbZrwRNyHepubqq9hOIRwNIfpKcUV6i-qZNdxyUROnUkZs7HFbQWuHg90CUsQQP5RZogWFCgE97/v1';
@@ -147,6 +151,104 @@ app.post('/api/chat', async (req, res) => {
       type: error?.type
     });
     res.status(500).json({ error: error?.message || 'خطا در ارتباط با AI' });
+  }
+});
+
+// ============ EMAIL VERIFICATION ROUTES ============
+
+// ارسال کد تایید
+app.post('/api/auth/send-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'ایمیل معتبر وارد کنید' });
+    }
+
+    // تولید کد 6 رقمی
+    const code = generateVerificationCode();
+    
+    // ذخیره کد با زمان انقضا (10 دقیقه)
+    verificationCodes.set(email, {
+      code,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+    });
+
+    // ارسال ایمیل
+    const sent = await sendVerificationEmail(email, code);
+
+    if (sent) {
+      res.json({ success: true, message: 'کد تایید به ایمیل شما ارسال شد' });
+    } else {
+      res.status(500).json({ error: 'خطا در ارسال ایمیل. لطفاً دوباره تلاش کنید.' });
+    }
+  } catch (error) {
+    console.error('Send code error:', error);
+    res.status(500).json({ error: 'خطا در ارسال کد تایید' });
+  }
+});
+
+// تایید کد و ورود/ثبت‌نام
+app.post('/api/auth/verify-code', async (req, res) => {
+  try {
+    const { email, code, name } = req.body;
+
+    // بررسی کد
+    const stored = verificationCodes.get(email);
+    
+    if (!stored) {
+      return res.status(400).json({ error: 'کد تایید یافت نشد. لطفاً دوباره درخواست دهید.' });
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      verificationCodes.delete(email);
+      return res.status(400).json({ error: 'کد تایید منقضی شده است. لطفاً دوباره درخواست دهید.' });
+    }
+
+    if (stored.code !== code) {
+      return res.status(400).json({ error: 'کد تایید اشتباه است' });
+    }
+
+    // کد صحیح است، حذف کد
+    verificationCodes.delete(email);
+
+    // بررسی وجود کاربر
+    const [existingUser] = await db.select().from(users).where(eq(users.email, email));
+
+    if (existingUser) {
+      // کاربر وجود دارد، ورود
+      res.json({
+        success: true,
+        user: {
+          id: existingUser.id,
+          name: existingUser.name,
+          email: existingUser.email,
+          hasPremium: existingUser.hasPremium,
+          freeMessagesUsed: existingUser.freeMessagesUsed,
+        },
+      });
+    } else {
+      // کاربر جدید، ثبت‌نام
+      const [newUser] = await db.insert(users).values({
+        name: name || email.split('@')[0],
+        email,
+        password: '', // با کد تایید، رمز عبور نداریم
+      }).returning();
+
+      res.json({
+        success: true,
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          hasPremium: newUser.hasPremium,
+          freeMessagesUsed: newUser.freeMessagesUsed,
+        },
+      });
+    }
+  } catch (error) {
+    console.error('Verify code error:', error);
+    res.status(500).json({ error: 'خطا در تایید کد' });
   }
 });
 
