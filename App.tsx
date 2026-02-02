@@ -4,7 +4,7 @@ import PricingPlans from './components/PricingPlans';
 import PaymentPage from './components/PaymentPage';
 import AdminPanel from './components/AdminPanel';
 import AdminLoginModal from './components/AdminLoginModal';
-import AuthModal from './components/AuthModal';
+import AuthModal from './components/AuthModalSimple';
 import ProfileModal from './components/ProfileModal';
 import { 
   MessageSquare, 
