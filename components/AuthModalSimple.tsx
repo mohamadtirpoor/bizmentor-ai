@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, User } from 'lucide-react';
+import { X, Mail, User, Phone } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (userData: { name: string; email: string }) => void;
-  initialMode?: 'login' | 'register';
+  onSuccess: (userData: { name: string; email: string; phone: string }) => void;
   darkMode?: boolean;
 }
 
@@ -13,13 +12,11 @@ const AuthModalSimple: React.FC<AuthModalProps> = ({
   isOpen, 
   onClose, 
   onSuccess, 
-  initialMode = 'login', 
   darkMode = false 
 }) => {
-  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -28,27 +25,37 @@ const AuthModalSimple: React.FC<AuthModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validation
+    if (!name.trim()) {
+      setError('لطفاً نام خود را وارد کنید');
+      return;
+    }
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
+      setError('لطفاً یک ایمیل معتبر وارد کنید');
+      return;
+    }
+    if (!phone.trim() || !/^09\d{9}$/.test(phone)) {
+      setError('لطفاً شماره موبایل معتبر وارد کنید (مثال: 09123456789)');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
-      const body = mode === 'login' 
-        ? { email, password }
-        : { name, email, password };
-
-      const response = await fetch(endpoint, {
+      const response = await fetch('/api/auth/simple-register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ name, email, phone }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        onSuccess(data);
+        onSuccess(data.user);
         onClose();
       } else {
-        setError(data.error || 'خطا در ورود');
+        setError(data.error || 'خطا در ثبت اطلاعات');
       }
     } catch (err) {
       setError('خطا در ارتباط با سرور');
@@ -64,10 +71,10 @@ const AuthModalSimple: React.FC<AuthModalProps> = ({
         <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
           <div>
             <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-              {mode === 'login' ? 'ورود' : 'ثبت‌نام'}
+              شروع کنید
             </h3>
             <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              {mode === 'login' ? 'به حساب خود وارد شوید' : 'حساب کاربری جدید بسازید'}
+              اطلاعات خود را وارد کنید
             </p>
           </div>
           <button
@@ -81,28 +88,25 @@ const AuthModalSimple: React.FC<AuthModalProps> = ({
         {/* Content */}
         <form onSubmit={handleSubmit} className="p-6">
           <div className="space-y-4">
-            {mode === 'register' && (
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  نام
-                </label>
-                <div className="relative">
-                  <User className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => { setName(e.target.value); setError(''); }}
-                    required
-                    className={`w-full pr-11 pl-4 py-3 border rounded-xl text-sm focus:outline-none transition-colors ${
-                      darkMode
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500 focus:border-purple-500'
-                        : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-purple-500'
-                    }`}
-                    placeholder="نام خود را وارد کنید"
-                  />
-                </div>
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                نام و نام خانوادگی
+              </label>
+              <div className="relative">
+                <User className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => { setName(e.target.value); setError(''); }}
+                  className={`w-full pr-11 pl-4 py-3 border rounded-xl text-sm focus:outline-none transition-colors ${
+                    darkMode
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500 focus:border-purple-500'
+                      : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-purple-500'
+                  }`}
+                  placeholder="نام خود را وارد کنید"
+                />
               </div>
-            )}
+            </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -114,7 +118,6 @@ const AuthModalSimple: React.FC<AuthModalProps> = ({
                   type="email"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                  required
                   className={`w-full pr-11 pl-4 py-3 border rounded-xl text-sm focus:outline-none transition-colors ${
                     darkMode
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500 focus:border-purple-500'
@@ -128,21 +131,22 @@ const AuthModalSimple: React.FC<AuthModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                رمز عبور
+                شماره موبایل
               </label>
               <div className="relative">
-                <Lock className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                <Phone className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
                 <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                  required
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => { setPhone(e.target.value); setError(''); }}
                   className={`w-full pr-11 pl-4 py-3 border rounded-xl text-sm focus:outline-none transition-colors ${
                     darkMode
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500 focus:border-purple-500'
                       : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-purple-500'
                   }`}
-                  placeholder="رمز عبور خود را وارد کنید"
+                  placeholder="09123456789"
+                  dir="ltr"
+                  maxLength={11}
                 />
               </div>
             </div>
@@ -161,10 +165,10 @@ const AuthModalSimple: React.FC<AuthModalProps> = ({
               {isLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>در حال پردازش...</span>
+                  <span>در حال ثبت...</span>
                 </>
               ) : (
-                <span>{mode === 'login' ? 'ورود' : 'ثبت‌نام'}</span>
+                <span>شروع گفتگو</span>
               )}
             </button>
           </div>
@@ -172,16 +176,8 @@ const AuthModalSimple: React.FC<AuthModalProps> = ({
 
         {/* Footer */}
         <div className={`px-6 py-4 border-t rounded-b-2xl ${darkMode ? 'bg-gray-700/50 border-gray-700' : 'bg-gray-50 border-gray-100'}`}>
-          <p className={`text-sm text-center ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            {mode === 'login' ? 'حساب کاربری ندارید؟' : 'قبلاً ثبت‌نام کرده‌اید؟'}
-            {' '}
-            <button
-              type="button"
-              onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-              className="text-purple-600 hover:text-purple-700 font-medium"
-            >
-              {mode === 'login' ? 'ثبت‌نام کنید' : 'وارد شوید'}
-            </button>
+          <p className={`text-xs text-center ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            با ثبت اطلاعات، شما <span className="text-purple-600">شرایط و قوانین</span> را می‌پذیرید
           </p>
         </div>
       </div>

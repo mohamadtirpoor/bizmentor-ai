@@ -284,6 +284,53 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// Simple register (no password, just name, email, phone)
+app.post('/api/auth/simple-register', async (req, res) => {
+  try {
+    const { name, email, phone } = req.body;
+    
+    // Check if user exists
+    const [existingUser] = await db.select().from(users).where(eq(users.email, email));
+    
+    if (existingUser) {
+      // User exists, just return their info
+      return res.json({ 
+        user: {
+          id: existingUser.id,
+          name: existingUser.name, 
+          email: existingUser.email,
+          phone: existingUser.phone,
+          hasPremium: existingUser.hasPremium,
+          freeMessagesUsed: existingUser.freeMessagesUsed
+        }
+      });
+    }
+
+    // Create new user
+    const [newUser] = await db.insert(users).values({
+      name,
+      email,
+      phone,
+      password: '', // No password needed
+      hasPremium: true, // Everyone gets premium
+    }).returning();
+
+    res.json({ 
+      user: {
+        id: newUser.id,
+        name: newUser.name, 
+        email: newUser.email,
+        phone: newUser.phone,
+        hasPremium: newUser.hasPremium,
+        freeMessagesUsed: newUser.freeMessagesUsed
+      }
+    });
+  } catch (error) {
+    console.error('Simple register error:', error);
+    res.status(500).json({ error: 'خطا در ثبت اطلاعات' });
+  }
+});
+
 // Login user
 app.post('/api/auth/login', async (req, res) => {
   try {
