@@ -369,50 +369,62 @@ function ChatInterface({
             {messages.map((msg) => {
               const expert = messageExperts[msg.id];
               return (
-              <div key={msg.id} className={`flex gap-3 ${msg.role === MessageRole.USER ? 'flex-row-reverse' : ''}`}>
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  msg.role === MessageRole.USER
-                    ? (darkMode ? 'bg-purple-500/20' : 'bg-gray-200')
-                    : expert 
-                      ? (darkMode ? 'bg-purple-500/20' : 'bg-gray-100')
+              <div key={msg.id} className={`flex gap-3 sm:gap-4 ${msg.role === MessageRole.USER ? 'justify-end' : 'justify-start'}`}>
+                {msg.role === MessageRole.MODEL && (
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    expert 
+                      ? (darkMode ? 'bg-purple-500/20' : 'bg-purple-100')
                       : 'bg-gradient-to-br from-purple-500 to-purple-600'
-                }`}>
-                  {msg.role === MessageRole.USER ? (
-                    <User className={`w-4 h-4 ${darkMode ? 'text-purple-300' : 'text-gray-600'}`} />
-                  ) : expert ? (
-                    <ExpertIcon iconName={expert.iconName} className={`w-4 h-4 ${expert.color}`} />
-                  ) : (
-                    <Bot className="w-4 h-4 text-white" />
-                  )}
-                </div>
-                <div className={`flex-1 ${msg.role === MessageRole.USER ? 'text-left' : 'text-right'}`}>
+                  }`}>
+                    {expert ? (
+                      <ExpertIcon iconName={expert.iconName} className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${expert.color}`} />
+                    ) : (
+                      <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                    )}
+                  </div>
+                )}
+                
+                <div className={`flex-1 max-w-[85%] sm:max-w-[80%] md:max-w-[75%] ${msg.role === MessageRole.USER ? 'text-left' : 'text-right'}`}>
                   {msg.role === MessageRole.MODEL && expert && (
-                    <div className={`inline-flex items-center gap-1.5 mb-1 px-2 py-0.5 rounded-full text-xs ${
+                    <div className={`inline-flex items-center gap-1.5 mb-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                       darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-600'
                     }`}>
                       <ExpertIcon iconName={expert.iconName} className={`w-3 h-3 ${expert.color}`} />
                       {expert.name}
                     </div>
                   )}
-                  <div className={`inline-block max-w-[90%] p-4 rounded-2xl ${
+                  
+                  <div className={`inline-block w-full px-3 py-2.5 sm:px-4 sm:py-3 rounded-2xl ${
                     msg.role === MessageRole.USER
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-tr-none'
+                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-br-sm'
                       : (darkMode
-                          ? 'bg-[#12121a] border border-purple-500/20 text-gray-200 rounded-tl-none'
-                          : 'bg-white border border-gray-200 text-gray-700 rounded-tl-none')
+                          ? 'bg-[#1a1a24] border border-purple-500/20 text-gray-100 rounded-bl-sm'
+                          : 'bg-gray-50 border border-gray-200 text-gray-800 rounded-bl-sm')
                   }`}>
                     {msg.isThinking ? (
-                      <div className={`flex items-center gap-2 ${darkMode ? 'text-purple-400' : 'text-gray-400'}`}>
+                      <div className={`flex items-center gap-2 ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>
                         <Sparkles className="w-4 h-4 animate-pulse" />
                         <span className="text-sm">در حال تحلیل...</span>
                       </div>
                     ) : (
-                      <div className="prose prose-sm max-w-none text-right leading-relaxed">
+                      <div className={`prose prose-sm max-w-none leading-relaxed ${
+                        msg.role === MessageRole.USER 
+                          ? 'prose-invert text-white' 
+                          : (darkMode ? 'prose-invert text-gray-100' : 'text-gray-800')
+                      }`} style={{ direction: 'rtl', textAlign: 'right' }}>
                         <ReactMarkdown>{msg.text}</ReactMarkdown>
                       </div>
                     )}
                   </div>
                 </div>
+
+                {msg.role === MessageRole.USER && (
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    darkMode ? 'bg-purple-500/20' : 'bg-purple-100'
+                  }`}>
+                    <User className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${darkMode ? 'text-purple-300' : 'text-purple-600'}`} />
+                  </div>
+                )}
               </div>
             )})}
             <div ref={messagesEndRef} />
@@ -420,16 +432,16 @@ function ChatInterface({
         )}
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-4">
+      <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
         <div className="max-w-3xl mx-auto">
           {/* Expert Buttons - Horizontal Scrollable */}
-          <div className="mb-3 overflow-x-auto scrollbar-hide">
-            <div className="flex gap-2 pb-2" style={{ direction: 'rtl' }}>
+          <div className="mb-2 sm:mb-3 overflow-x-auto scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
+            <div className="flex gap-1.5 sm:gap-2 pb-2" style={{ direction: 'rtl' }}>
               {EXPERT_MODES.map((expert) => (
                 <button
                   key={expert.id}
                   onClick={() => setSelectedExpert(selectedExpert?.id === expert.id ? null : expert)}
-                  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`flex-shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all ${
                     selectedExpert?.id === expert.id
                       ? (darkMode 
                           ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' 
@@ -439,36 +451,36 @@ function ChatInterface({
                           : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200')
                   }`}
                 >
-                  <ExpertIcon iconName={expert.iconName} className={`w-4 h-4 ${selectedExpert?.id === expert.id ? 'text-white' : expert.color}`} />
-                  <span>{expert.name}</span>
+                  <ExpertIcon iconName={expert.iconName} className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${selectedExpert?.id === expert.id ? 'text-white' : expert.color}`} />
+                  <span className="whitespace-nowrap">{expert.name}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {selectedExpert && (
-            <div className={`flex items-center justify-between mb-2 px-4 py-2 rounded-2xl ${
+            <div className={`flex items-center justify-between mb-2 px-3 sm:px-4 py-2 rounded-xl sm:rounded-2xl ${
               darkMode ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-purple-100 border border-purple-200'
             }`}>
-              <div className="flex items-center gap-2">
-                <ExpertIcon iconName={selectedExpert.iconName} className={`w-4 h-4 ${selectedExpert.color}`} />
-                <span className={`text-sm font-medium ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>
+              <div className="flex items-center gap-2 min-w-0">
+                <ExpertIcon iconName={selectedExpert.iconName} className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${selectedExpert.color}`} />
+                <span className={`text-xs sm:text-sm font-medium truncate ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>
                   {selectedExpert.name}
                 </span>
-                <span className={`text-xs ${darkMode ? 'text-purple-400/60' : 'text-purple-500'}`}>
+                <span className={`hidden sm:inline text-xs ${darkMode ? 'text-purple-400/60' : 'text-purple-500'}`}>
                   - {selectedExpert.description}
                 </span>
               </div>
               <button
                 onClick={() => setSelectedExpert(null)}
-                className={`p-1 rounded-lg ${darkMode ? 'hover:bg-purple-500/30 text-purple-400' : 'hover:bg-purple-200 text-purple-600'}`}
+                className={`p-1 rounded-lg flex-shrink-0 ${darkMode ? 'hover:bg-purple-500/30 text-purple-400' : 'hover:bg-purple-200 text-purple-600'}`}
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
           )}
 
-          <div className={`relative flex items-end gap-3 p-4 rounded-3xl backdrop-blur-xl border ${
+          <div className={`relative flex items-end gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl sm:rounded-3xl backdrop-blur-xl border ${
             darkMode
               ? 'bg-white/5 border-purple-500/30 shadow-[0_8px_32px_rgba(139,92,246,0.2)]'
               : 'bg-white/80 border-gray-200 shadow-[0_8px_32px_rgba(0,0,0,0.1)]'
@@ -484,7 +496,7 @@ function ChatInterface({
               rows={1}
               dir="rtl"
               readOnly={!isLoggedIn}
-              className={`flex-1 bg-transparent border-none resize-none focus:ring-0 focus:outline-none min-h-[24px] max-h-32 text-right text-sm ${
+              className={`flex-1 bg-transparent border-none resize-none focus:ring-0 focus:outline-none min-h-[24px] max-h-32 text-right text-sm sm:text-base ${
                 darkMode ? 'text-gray-200 placeholder-purple-400/40' : 'text-gray-700 placeholder-gray-400'
               }`}
             />
@@ -492,21 +504,21 @@ function ChatInterface({
             <button
               onClick={handleSend}
               disabled={!input.trim() || isLoading || !isLoggedIn}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
                 darkMode
                   ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:opacity-90'
                   : 'bg-purple-600 text-white hover:bg-purple-700'
               }`}
             >
               {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <ArrowUp className="w-5 h-5" />
+                <ArrowUp className="w-4 h-4 sm:w-5 sm:h-5" />
               )}
             </button>
           </div>
           
-          <p className={`text-center text-xs mt-3 ${darkMode ? 'text-purple-400/40' : 'text-gray-400'}`}>
+          <p className={`text-center text-[10px] sm:text-xs mt-2 sm:mt-3 px-2 ${darkMode ? 'text-purple-400/40' : 'text-gray-400'}`}>
             بیزنس‌متر ممکن است خطا کند. اطلاعات مهم را بررسی کنید.
           </p>
         </div>
