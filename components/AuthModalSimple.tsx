@@ -42,23 +42,25 @@ const AuthModalSimple: React.FC<AuthModalProps> = ({
 
     setIsLoading(true);
 
+    // Save to localStorage (temporary until database is connected)
     try {
-      const response = await fetch('/api/auth/simple-register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone }),
-      });
+      const userData = {
+        id: Date.now(),
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        hasPremium: true,
+        createdAt: new Date().toISOString()
+      };
 
-      const data = await response.json();
-
-      if (response.ok) {
-        onSuccess(data.user);
-        onClose();
-      } else {
-        setError(data.error || 'خطا در ثبت اطلاعات');
-      }
+      // Save user data
+      localStorage.setItem('tempUserData', JSON.stringify(userData));
+      
+      // Success
+      onSuccess(userData);
+      onClose();
     } catch (err) {
-      setError('خطا در ارتباط با سرور');
+      setError('خطا در ذخیره اطلاعات');
     } finally {
       setIsLoading(false);
     }
