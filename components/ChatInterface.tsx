@@ -265,6 +265,7 @@ function ChatInterface({
   const [selectedExpert, setSelectedExpert] = useState<ExpertMode | null>(null);
   const [messageExperts, setMessageExperts] = useState<Record<string, ExpertMode | null>>({});
   const [autoScroll, setAutoScroll] = useState(true);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -283,7 +284,7 @@ function ChatInterface({
 
   // وقتی expert انتخاب میشه، سوالات اولیه رو نمایش بده
   useEffect(() => {
-    if (selectedExpert && messages.length === 0) {
+    if (selectedExpert) {
       const welcomeMessage: Message = {
         id: Date.now().toString(),
         role: MessageRole.MODEL,
@@ -305,6 +306,14 @@ function ChatInterface({
       onRequestAuth();
       return;
     }
+  }
+
+  function handleStop() {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+    }
+    setIsLoading(false);
   }
 
   async function handleSend() {
@@ -332,6 +341,9 @@ function ChatInterface({
     setMessages(prev => [...prev, { id: botMsgId, role: MessageRole.MODEL, text: '', isThinking: true }]);
     setMessageExperts(prev => ({ ...prev, [botMsgId]: selectedExpert }));
 
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
       let fullText = '';
       await streamChatResponse(
@@ -339,6 +351,7 @@ function ChatInterface({
         userMsg.text,
         mode,
         (chunk) => {
+          if (controller.signal.aborted) return;
           fullText += chunk;
           setMessages(prev => prev.map(m => m.id === botMsgId ? { ...m, text: fullText, isThinking: false } : m));
         },
@@ -352,9 +365,14 @@ function ChatInterface({
         onSaveChat(finalMessages, userMsg.text.slice(0, 30) + (userMsg.text.length > 30 ? '...' : ''));
       }
     } catch (error) {
-      console.error("Chat Error:", error);
+      if (controller.signal.aborted) {
+        console.log("Chat stopped by user");
+      } else {
+        console.error("Chat Error:", error);
+      }
     } finally {
       setIsLoading(false);
+      setAbortController(null);
     }
   }
 
@@ -550,21 +568,30 @@ function ChatInterface({
               }`}
             />
             
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || isLoading || !isLoggedIn}
-              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
-                darkMode
-                  ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:opacity-90'
-                  : 'bg-purple-600 text-white hover:bg-purple-700'
-              }`}
-            >
-              {isLoading ? (
-                <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
+            {isLoading ? (
+              <button
+                onClick={handleStop}
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all flex-shrink-0 ${
+                  darkMode
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-red-600 text-white hover:bg-red-700'
+                }`}
+              >
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || !isLoggedIn}
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
+                  darkMode
+                    ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:opacity-90'
+                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                }`}
+              >
                 <ArrowUp className="w-4 h-4 sm:w-5 sm:h-5" />
-              )}
-            </button>
+              </button>
+            )}
           </div>
           
           <p className={`text-center text-[10px] sm:text-xs mt-2 sm:mt-3 px-2 ${darkMode ? 'text-purple-400/40' : 'text-gray-400'}`}>
