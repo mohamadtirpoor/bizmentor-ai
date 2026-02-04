@@ -4,5 +4,8 @@
   "port": 3000,
   "node": {
     "version": "20"
+  },
+  "build": {
+    "command": "npm run build"
   }
 }
