@@ -30,9 +30,8 @@ DATABASE_URL=postgresql://root:jpMjfUFd8b2DlnaMkcSX6ctd@businessmeter:5432/postg
 ## 📊 پنل مدیریت:
 
 ### دسترسی:
-- URL: https://businessmeter.ir
-- وارد شو با حساب کاربری
-- اگه ادمین هستی، دکمه "پنل مدیریت" رو میبینی
+- URL: https://businessmeter.ir/admin
+- مستقیماً به این آدرس برو
 
 ### ورود به عنوان ادمین:
 - Username: `mohamad`
@@ -53,6 +52,33 @@ DATABASE_URL=postgresql://root:jpMjfUFd8b2DlnaMkcSX6ctd@businessmeter:5432/postg
 2. **انتخاب کاربر**: روی یک کاربر کلیک کن → چت‌هاش نمایش داده میشه
 3. **مشاهده چت**: روی یک چت کلیک کن → پیام‌ها نمایش داده میشه
 4. **جستجو**: می‌تونی با نام، ایمیل یا شماره تلفن جستجو کنی
+
+---
+
+## 🚀 دیپلوی به لیارا:
+
+### مرحله 1: اضافه کردن DATABASE_URL
+1. برو به: https://console.liara.ir/apps/bus-metr/settings
+2. در بخش **Environment Variables**:
+   - Key: `DATABASE_URL`
+   - Value: `postgresql://root:jpMjfUFd8b2DlnaMkcSX6ctd@businessmeter:5432/postgres`
+3. کلیک روی **Add** یا **افزودن**
+
+### مرحله 2: دیپلوی کد جدید
+```bash
+git add .
+git commit -m "Fix admin panel route"
+git push
+```
+
+### مرحله 3: Restart اپلیکیشن
+1. برگرد به صفحه اصلی اپ در لیارا
+2. کلیک روی **Restart**
+3. صبر کن تا اپ restart بشه (حدود 1-2 دقیقه)
+
+### مرحله 4: تست
+1. برو به: https://businessmeter.ir/admin
+2. وارد شو با username: `mohamad` و password: `mohamad.tir1383`
 
 ---
 

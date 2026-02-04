@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import ChatInterface from './components/ChatInterface';
 import PricingPlans from './components/PricingPlans';
 import PaymentPage from './components/PaymentPage';
-import AdminPanel from './components/AdminPanel';
-import AdminDashboard from './components/AdminDashboard';
 import AdminPage from './components/AdminPage';
 import AdminLoginModal from './components/AdminLoginModal';
 import AuthModal from './components/AuthModalSimple';
@@ -86,7 +84,6 @@ const App: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<'chat' | 'pricing' | 'admin'>('chat');
   const [paymentPlan, setPaymentPlan] = useState<any>(null);
-  const [plans, setPlans] = useState(INITIAL_PLANS);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
@@ -132,12 +129,6 @@ const App: React.FC = () => {
       return true;
     }
     return false;
-  };
-
-  const handleAdminLogout = () => {
-    setIsAdmin(false);
-    localStorage.removeItem('isAdmin');
-    setActiveTab('chat');
   };
 
   const toggleTheme = () => {
@@ -221,7 +212,6 @@ const App: React.FC = () => {
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
           onSuccess={handleAuthSuccess}
-          initialMode="register"
           darkMode={darkMode}
         />
       )}
@@ -527,15 +517,13 @@ const App: React.FC = () => {
                 plan={paymentPlan}
                 onBack={() => setPaymentPlan(null)}
                 onSuccess={() => {
-                  localStorage.setItem('hasPremium', 'true');
-                  setHasPremium(true);
                   setPaymentPlan(null);
                   setActiveTab('chat');
                 }}
                 darkMode={darkMode}
               />
             ) : (
-              <PricingPlans plans={plans} onSelectPlan={setPaymentPlan} darkMode={darkMode} />
+              <PricingPlans plans={INITIAL_PLANS} onSelectPlan={setPaymentPlan} darkMode={darkMode} />
             )
           )}
         </main>
