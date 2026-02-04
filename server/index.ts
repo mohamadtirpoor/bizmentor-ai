@@ -17,6 +17,15 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    database: db ? 'connected' : 'disconnected'
+  });
+});
+
 // Serve static files in production
 const distPath = join(__dirname, '..', 'dist');
 app.use(express.static(distPath));
@@ -257,6 +266,10 @@ app.post('/api/auth/verify-code', async (req, res) => {
 // Register user
 app.post('/api/auth/register', async (req, res) => {
   try {
+    if (!db) {
+      return res.status(503).json({ error: 'دیتابیس در دسترس نیست' });
+    }
+    
     const { name, email, password } = req.body;
     
     // Check if user exists
@@ -287,6 +300,21 @@ app.post('/api/auth/register', async (req, res) => {
 // Simple register (no password, just name, email, phone)
 app.post('/api/auth/simple-register', async (req, res) => {
   try {
+    if (!db) {
+      // If no database, use localStorage only
+      const { name, email, phone } = req.body;
+      return res.json({ 
+        user: {
+          id: Date.now(),
+          name, 
+          email,
+          phone,
+          hasPremium: true,
+          freeMessagesUsed: 0
+        }
+      });
+    }
+    
     const { name, email, phone } = req.body;
     
     // Check if user exists
