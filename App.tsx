@@ -3,6 +3,7 @@ import ChatInterface from './components/ChatInterface';
 import PricingPlans from './components/PricingPlans';
 import PaymentPage from './components/PaymentPage';
 import AdminPanel from './components/AdminPanel';
+import AdminDashboard from './components/AdminDashboard';
 import AdminLoginModal from './components/AdminLoginModal';
 import AuthModal from './components/AuthModalSimple';
 import ProfileModal from './components/ProfileModal';
@@ -302,6 +303,21 @@ const App: React.FC = () => {
             {/* User Account */}
             {isLoggedIn && userData && (
               <div className={`p-3 ${darkMode ? 'shadow-[0_-2px_10px_rgba(139,92,246,0.1)]' : 'shadow-[0_-2px_10px_rgba(0,0,0,0.05)]'}`}>
+                {isAdmin && (
+                  <button
+                    onClick={() => { setActiveTab('admin'); setShowMobileSidebar(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all mb-2 ${
+                      activeTab === 'admin'
+                        ? (darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700')
+                        : (darkMode ? 'text-gray-300 hover:bg-purple-500/10' : 'text-gray-600 hover:bg-gray-100')
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    <span>پنل مدیریت</span>
+                  </button>
+                )}
                 <button
                   onClick={() => { setShowProfileModal(true); setShowMobileSidebar(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -386,6 +402,21 @@ const App: React.FC = () => {
         {/* User Account */}
         {isLoggedIn && userData && (
           <div className={`p-3 ${darkMode ? 'shadow-[0_-2px_10px_rgba(139,92,246,0.1)]' : 'shadow-[0_-2px_10px_rgba(0,0,0,0.05)]'}`}>
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab('admin')}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all mb-2 ${
+                  activeTab === 'admin'
+                    ? (darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700')
+                    : (darkMode ? 'text-gray-300 hover:bg-purple-500/10' : 'text-gray-600 hover:bg-gray-100')
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                <span>پنل مدیریت</span>
+              </button>
+            )}
             <button
               onClick={() => setShowProfileModal(true)}
               className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -504,7 +535,7 @@ const App: React.FC = () => {
           )}
 
           {activeTab === 'admin' && isAdmin && (
-            <AdminPanel plans={plans} setPlans={setPlans} onLogout={handleAdminLogout} darkMode={darkMode} />
+            <AdminDashboard onLogout={handleAdminLogout} darkMode={darkMode} />
           )}
         </main>
       </div>
