@@ -6,6 +6,7 @@ import AdminPage from './components/AdminPage';
 import AdminLoginModal from './components/AdminLoginModal';
 import AuthModal from './components/AuthModalSimple';
 import ProfileModal from './components/ProfileModal';
+import BlogPage from './components/BlogPage';
 import { 
   MessageSquare, 
   Star,
@@ -15,7 +16,8 @@ import {
   Sun,
   Moon,
   Menu,
-  X
+  X,
+  BookOpen
 } from 'lucide-react';
 
 interface ChatHistory {
@@ -82,7 +84,7 @@ const App: React.FC = () => {
     return <AdminPage darkMode={true} />;
   }
   
-  const [activeTab, setActiveTab] = useState<'chat' | 'pricing' | 'admin'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'pricing' | 'blog' | 'admin'>('chat');
   const [paymentPlan, setPaymentPlan] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -299,6 +301,23 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            {/* Blog Link - Mobile */}
+            <button
+              onClick={() => { setActiveTab('blog'); setShowMobileSidebar(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all mb-2 ${
+                activeTab === 'blog'
+                  ? darkMode
+                    ? 'bg-purple-500/20 text-purple-300'
+                    : 'bg-purple-100 text-purple-700'
+                  : darkMode
+                    ? 'text-gray-300 hover:bg-purple-500/10'
+                    : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <BookOpen className="w-5 h-5" />
+              <span>مقالات آموزشی</span>
+            </button>
+
             {/* User Account */}
             {isLoggedIn && userData && (
               <div className={`p-3 ${darkMode ? 'shadow-[0_-2px_10px_rgba(139,92,246,0.1)]' : 'shadow-[0_-2px_10px_rgba(0,0,0,0.05)]'}`}>
@@ -396,6 +415,23 @@ const App: React.FC = () => {
           </div>
         </div>
 
+        {/* Blog Link - Desktop */}
+        <button
+          onClick={() => setActiveTab('blog')}
+          className={`mx-3 mb-2 flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            activeTab === 'blog'
+              ? darkMode
+                ? 'bg-purple-500/20 text-purple-300'
+                : 'bg-purple-100 text-purple-700'
+              : darkMode
+                ? 'text-gray-300 hover:bg-purple-500/10'
+                : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          <BookOpen className="w-5 h-5" />
+          <span>مقالات آموزشی</span>
+        </button>
+
         {/* User Account */}
         {isLoggedIn && userData && (
           <div className={`p-3 ${darkMode ? 'shadow-[0_-2px_10px_rgba(139,92,246,0.1)]' : 'shadow-[0_-2px_10px_rgba(0,0,0,0.05)]'}`}>
@@ -463,6 +499,23 @@ const App: React.FC = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
+            {/* Blog Button */}
+            <button
+              onClick={() => setActiveTab('blog')}
+              className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'blog'
+                  ? darkMode
+                    ? 'bg-purple-500 text-white'
+                    : 'bg-purple-600 text-white'
+                  : darkMode
+                    ? 'text-gray-400 hover:bg-purple-500/10'
+                    : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              مقالات
+            </button>
+
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
@@ -525,6 +578,13 @@ const App: React.FC = () => {
             ) : (
               <PricingPlans plans={INITIAL_PLANS} onSelectPlan={setPaymentPlan} darkMode={darkMode} />
             )
+          )}
+
+          {activeTab === 'blog' && (
+            <BlogPage 
+              darkMode={darkMode}
+              onBack={() => setActiveTab('chat')}
+            />
           )}
         </main>
       </div>
