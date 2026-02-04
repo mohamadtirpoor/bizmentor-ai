@@ -1,10 +1,23 @@
-# بیزنس‌متر - مشاور هوشمند کسب‌وکار
+# بیزنس‌متر (Businessmeter) - مشاور هوشمند کسب‌وکار
+# مدیر محصول | مدیر مارکتینگ | مدیر فروش | مدیر مالی | مدیر منابع انسانی
+
 User-agent: *
 Allow: /
+Allow: /blog
+Allow: /blog/*
 Disallow: /api/
+Disallow: /admin
 
 # Sitemap
 Sitemap: https://businessmeter.ir/sitemap.xml
 
 # Crawl-delay
-Crawl-delay: 1
+Crawl-delay: 0
+
+# Specific important pages for SEO
+Allow: /blog/product-management-basics
+Allow: /blog/marketing-strategy-2024
+Allow: /blog/sales-techniques
+Allow: /blog/financial-management
+Allow: /blog/hr-management
+Allow: /blog/business-analytics
