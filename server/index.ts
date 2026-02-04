@@ -610,7 +610,7 @@ app.delete('/api/admin/users/:id', async (req, res) => {
 
 // ============ CATCH-ALL ROUTE (SPA Support) ============
 // این باید آخرین route باشه - همه route های دیگه رو به index.html برمیگردونه
-app.get('*', (req, res) => {
+app.use((req, res) => {
   res.sendFile(join(distPath, 'index.html'));
 });
 
