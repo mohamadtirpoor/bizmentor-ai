@@ -199,6 +199,9 @@ app.post('/api/auth/send-code', async (req, res) => {
 
 // تایید کد و ورود/ثبت‌نام
 app.post('/api/auth/verify-code', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const { email, code, name } = req.body;
 
@@ -361,6 +364,9 @@ app.post('/api/auth/simple-register', async (req, res) => {
 
 // Login user
 app.post('/api/auth/login', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const { email, password } = req.body;
     
@@ -385,6 +391,9 @@ app.post('/api/auth/login', async (req, res) => {
 
 // Update user premium status
 app.patch('/api/users/:id/premium', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const { id } = req.params;
     const { hasPremium } = req.body;
@@ -403,6 +412,9 @@ app.patch('/api/users/:id/premium', async (req, res) => {
 
 // Increment free messages used
 app.patch('/api/users/:id/increment-messages', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const { id } = req.params;
 
@@ -425,6 +437,9 @@ app.patch('/api/users/:id/increment-messages', async (req, res) => {
 
 // Create new chat
 app.post('/api/chats', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const { userId, title, mode } = req.body;
 
@@ -443,6 +458,9 @@ app.post('/api/chats', async (req, res) => {
 
 // Get user's chats
 app.get('/api/chats/user/:userId', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const { userId } = req.params;
 
@@ -460,6 +478,9 @@ app.get('/api/chats/user/:userId', async (req, res) => {
 
 // Get chat with messages
 app.get('/api/chats/:chatId', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const { chatId } = req.params;
 
@@ -480,6 +501,9 @@ app.get('/api/chats/:chatId', async (req, res) => {
 
 // Add message to chat
 app.post('/api/messages', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const { chatId, role, content, metadata } = req.body;
 
@@ -506,6 +530,9 @@ app.post('/api/messages', async (req, res) => {
 
 // Get all users (admin)
 app.get('/api/admin/users', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const allUsers = await db.select({
       id: users.id,
@@ -525,6 +552,9 @@ app.get('/api/admin/users', async (req, res) => {
 
 // Get all chats with user info (admin)
 app.get('/api/admin/chats', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const allChats = await db.select({
       id: chats.id,
@@ -549,6 +579,9 @@ app.get('/api/admin/chats', async (req, res) => {
 
 // Get chat messages (admin)
 app.get('/api/admin/chats/:chatId/messages', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const { chatId } = req.params;
 
@@ -566,6 +599,9 @@ app.get('/api/admin/chats/:chatId/messages', async (req, res) => {
 
 // Get dashboard stats (admin)
 app.get('/api/admin/stats', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const [userCount] = await db.select({ count: count() }).from(users);
     const [chatCount] = await db.select({ count: count() }).from(chats);
@@ -586,6 +622,9 @@ app.get('/api/admin/stats', async (req, res) => {
 
 // Delete user (admin)
 app.delete('/api/admin/users/:id', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
   try {
     const { id } = req.params;
     
