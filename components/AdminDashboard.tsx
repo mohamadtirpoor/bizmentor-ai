@@ -111,7 +111,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLog
       {/* Header */}
       <header className={`h-16 flex items-center justify-between px-6 border-b ${darkMode ? 'bg-[#12121a] border-purple-500/20' : 'bg-white border-gray-200'}`}>
         <div className="flex items-center gap-3">
-          <img src="/logo/Untitled-1.png" alt="بیزنس‌متر" className="w-10 h-10 rounded-xl" />
+          <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-10 h-10 rounded-xl" />
           <div>
             <h1 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>پنل مدیریت</h1>
             <p className={`text-xs ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>مدیریت کاربران و چت‌ها</p>

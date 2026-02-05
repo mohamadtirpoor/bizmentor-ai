@@ -425,7 +425,7 @@ function ChatInterface({
       <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto pb-48">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-6">
-            <img src="/logo/Untitled-1.png" alt="بیزنس‌متر" className="w-16 h-16 rounded-2xl object-contain mb-6" />
+            <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-16 h-16 rounded-2xl object-contain mb-6" />
             <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>سلام! من بیزنس‌متر هستم</h2>
             <p className={`text-center max-w-md mb-8 ${darkMode ? 'text-purple-300/60' : 'text-gray-500'}`}>
               مشاور هوشمند کسب‌وکار شما. آماده‌ام تا با تحلیل دقیق به رشد بیزینس شما کمک کنم.
