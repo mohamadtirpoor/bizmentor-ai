@@ -26,6 +26,31 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Database test endpoint
+app.get('/api/db-test', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(503).json({ error: 'Database not connected' });
+    }
+    
+    // Test query
+    const result = await db.select().from(users).limit(1);
+    
+    res.json({ 
+      success: true, 
+      message: 'Database connected successfully',
+      usersCount: result.length
+    });
+  } catch (error: any) {
+    console.error('Database test error:', error);
+    res.status(500).json({ 
+      error: 'Database error', 
+      message: error.message,
+      hint: 'Tables might not exist. Run migrations first.'
+    });
+  }
+});
+
 // Serve static files in production
 const distPath = join(__dirname, '..', 'dist');
 app.use(express.static(distPath));
