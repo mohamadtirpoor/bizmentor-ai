@@ -42,25 +42,36 @@ const AuthModalSimple: React.FC<AuthModalProps> = ({
 
     setIsLoading(true);
 
-    // Save to localStorage (temporary until database is connected)
     try {
-      const userData = {
-        id: Date.now(),
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        hasPremium: true,
-        createdAt: new Date().toISOString()
-      };
+      // Send to server to save in database
+      const response = await fetch('/api/auth/simple-register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+        }),
+      });
 
-      // Save user data
-      localStorage.setItem('tempUserData', JSON.stringify(userData));
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'خطا در ثبت اطلاعات');
+      }
+
+      // Save to localStorage as well
+      localStorage.setItem('userData', JSON.stringify(data.user));
+      localStorage.setItem('isLoggedIn', 'true');
       
       // Success
-      onSuccess(userData);
+      onSuccess(data.user);
       onClose();
-    } catch (err) {
-      setError('خطا در ذخیره اطلاعات');
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      setError(err.message || 'خطا در ثبت اطلاعات');
     } finally {
       setIsLoading(false);
     }
