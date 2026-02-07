@@ -633,6 +633,7 @@ app.get('/api/admin/users', async (req, res) => {
       id: users.id,
       name: users.name,
       email: users.email,
+      phone: users.phone,
       hasPremium: users.hasPremium,
       freeMessagesUsed: users.freeMessagesUsed,
       createdAt: users.createdAt,
