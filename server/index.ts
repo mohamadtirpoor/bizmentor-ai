@@ -7,6 +7,7 @@ import { loadExpertKnowledge } from './knowledgeService';
 import { sendVerificationEmail, generateVerificationCode } from './emailService';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import postgres from 'postgres';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,6 +48,75 @@ app.get('/api/db-test', async (req, res) => {
       error: 'Database error', 
       message: error.message,
       hint: 'Tables might not exist. Run migrations first.'
+    });
+  }
+});
+
+// Database initialization endpoint (admin only)
+app.post('/api/db-init', async (req, res) => {
+  try {
+    const { adminKey } = req.body;
+    
+    // Simple admin key check
+    if (adminKey !== 'mohamad.tir1383') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    
+    const connectionString = process.env.DATABASE_URL || 'postgresql://root:jpMjfUFd8b2DlnaMkcSX6ctd@businessmeter:5432/postgres';
+    const sqlClient = postgres(connectionString);
+    
+    // Drop and recreate tables
+    await sqlClient`DROP TABLE IF EXISTS messages CASCADE`;
+    await sqlClient`DROP TABLE IF EXISTS chats CASCADE`;
+    await sqlClient`DROP TABLE IF EXISTS users CASCADE`;
+    
+    await sqlClient`
+      CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        phone TEXT,
+        password TEXT DEFAULT '',
+        has_premium BOOLEAN DEFAULT true,
+        free_messages_used INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    
+    await sqlClient`
+      CREATE TABLE chats (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        title TEXT NOT NULL,
+        mode TEXT DEFAULT 'consultant',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    
+    await sqlClient`
+      CREATE TABLE messages (
+        id SERIAL PRIMARY KEY,
+        chat_id INTEGER REFERENCES chats(id),
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    
+    await sqlClient.end();
+    
+    res.json({ 
+      success: true, 
+      message: 'Database initialized successfully'
+    });
+  } catch (error: any) {
+    console.error('Database init error:', error);
+    res.status(500).json({ 
+      error: 'Database initialization failed', 
+      message: error.message
     });
   }
 });
