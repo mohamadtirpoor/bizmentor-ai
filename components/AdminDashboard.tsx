@@ -5,7 +5,9 @@ interface User {
   id: number;
   name: string;
   email: string;
-  phone: string;
+  phone: string | null;
+  hasPremium: boolean;
+  freeMessagesUsed: number;
   createdAt: string;
 }
 
@@ -13,6 +15,7 @@ interface Chat {
   id: number;
   userId: number;
   title: string;
+  mode: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +25,7 @@ interface Message {
   chatId: number;
   role: string;
   content: string;
+  metadata: any;
   createdAt: string;
 }
 
@@ -38,7 +42,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLog
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [stats, setStats] = useState({ totalUsers: 0, totalChats: 0, totalMessages: 0 });
+  const [stats, setStats] = useState({ 
+    totalUsers: 0, 
+    totalChats: 0, 
+    totalMessages: 0,
+    premiumUsers: 0
+  });
 
   useEffect(() => {
     loadUsers();
@@ -129,7 +138,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLog
 
       {/* Stats */}
       <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className={`p-4 rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
@@ -138,6 +147,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLog
               <div>
                 <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>کل کاربران</p>
                 <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{stats.totalUsers}</p>
+              </div>
+            </div>
+          </div>
+          <div className={`p-4 rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                <Users className="w-6 h-6 text-amber-500" />
+              </div>
+              <div>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>کاربران Premium</p>
+                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{stats.premiumUsers}</p>
               </div>
             </div>
           </div>
@@ -200,9 +220,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLog
                       : (darkMode ? 'hover:bg-purple-500/10' : 'hover:bg-gray-50')
                   }`}
                 >
-                  <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.name}</p>
-                  <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{user.email}</p>
-                  {user.phone && <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{user.phone}</p>}
+                  <div className="flex items-center justify-between mb-1">
+                    <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.name}</p>
+                    {user.hasPremium && (
+                      <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-xs rounded-full">Premium</span>
+                    )}
+                  </div>
+                  <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} dir="ltr">{user.email}</p>
+                  {user.phone && <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} dir="ltr">{user.phone}</p>}
+                  <div className="flex items-center justify-between mt-2">
+                    <p className={`text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                      {new Date(user.createdAt).toLocaleDateString('fa-IR')}
+                    </p>
+                    <p className={`text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                      {user.freeMessagesUsed} پیام
+                    </p>
+                  </div>
                 </button>
               ))
             )}
@@ -229,7 +262,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLog
                         : (darkMode ? 'hover:bg-purple-500/10' : 'hover:bg-gray-50')
                     }`}
                   >
-                    <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-800'}`}>{chat.title}</p>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-800'}`}>{chat.title}</p>
+                      {chat.mode && (
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                          darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
+                        }`}>
+                          {chat.mode === 'consultant' ? 'مشاور' : chat.mode}
+                        </span>
+                      )}
+                    </div>
                     <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       {new Date(chat.createdAt).toLocaleDateString('fa-IR')}
                     </p>
