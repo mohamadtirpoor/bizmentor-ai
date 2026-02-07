@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { User, Bot, Sparkles, Star, ArrowUp, MoreHorizontal, Package, Megaphone, PenTool, Users, X, TrendingUp, DollarSign } from 'lucide-react';
+import { User, Bot, Sparkles, Star, ArrowUp, Package, Megaphone, Users, X, TrendingUp, DollarSign } from 'lucide-react';
 import { ChatMode, Message, MessageRole } from '../types';
 import { streamChatResponse } from '../services/geminiService';
 
@@ -282,16 +282,16 @@ function ChatInterface({
     }
   }, [initialMessages]);
 
-  // وقتی expert انتخاب میشه، سوالات اولیه رو نمایش بده
+  // وقتی expert انتخاب میشه، سوالات اولیه رو به چت اضافه کن (بدون پاک کردن چت قبلی)
   useEffect(() => {
     if (selectedExpert) {
       const welcomeMessage: Message = {
         id: Date.now().toString(),
         role: MessageRole.MODEL,
-        text: `سلام! من **${selectedExpert.name}** شما هستم. 👋\n\nبرای اینکه بتونم بهترین راهنمایی رو بهتون ارائه بدم، لطفاً به این سوالات جواب بدید:\n\n${selectedExpert.initialQuestions.map((q, i) => `**${i + 1}.** ${q}`).join('\n\n')}\n\n✨ می‌تونید به هر سوالی که دوست دارید جواب بدید یا سوال خودتون رو بپرسید!`
+        text: `سلام! من **${selectedExpert.name}** شما هستم. 👋\n\nبرای اینکه بتوانم بهترین راهنمایی را به شما ارائه دهم، لطفاً به این سوالات جواب دهید:\n\n${selectedExpert.initialQuestions.map((q, i) => `**${i + 1}.** ${q}`).join('\n\n')}\n\n✨ می‌توانید به هر سوالی که دوست دارید جواب دهید یا سوال خودتان را بپرسید!`
       };
-      setMessages([welcomeMessage]);
-      setMessageExperts({ [welcomeMessage.id]: selectedExpert });
+      setMessages(prev => [...prev, welcomeMessage]);
+      setMessageExperts(prev => ({ ...prev, [welcomeMessage.id]: selectedExpert }));
     }
   }, [selectedExpert]);
 
