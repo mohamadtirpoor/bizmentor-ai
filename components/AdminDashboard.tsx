@@ -1,5 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Users, MessageSquare, Search, Eye, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  Users, 
+  MessageSquare, 
+  Search, 
+  TrendingUp, 
+  TrendingDown,
+  Crown,
+  Calendar,
+  Clock,
+  Mail,
+  Phone,
+  RefreshCw,
+  Filter,
+  Download,
+  BarChart3,
+  Activity
+} from 'lucide-react';
 
 interface User {
   id: number;
@@ -29,30 +45,53 @@ interface Message {
   createdAt: string;
 }
 
+interface Stats {
+  totalUsers: number;
+  totalChats: number;
+  totalMessages: number;
+  premiumUsers: number;
+}
+
 interface AdminDashboardProps {
   darkMode?: boolean;
   onLogout: () => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLogout }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = true, onLogout }) => {
   const [users, setUsers] = useState<User[]>([]);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [recentUsers, setRecentUsers] = useState<User[]>([]);
+  const [recentChats, setRecentChats] = useState<Chat[]>([]);
   const [userChats, setUserChats] = useState<Chat[]>([]);
-  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [stats, setStats] = useState<Stats>({ totalUsers: 0, totalChats: 0, totalMessages: 0, premiumUsers: 0 });
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [stats, setStats] = useState({ 
-    totalUsers: 0, 
-    totalChats: 0, 
-    totalMessages: 0,
-    premiumUsers: 0
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
 
   useEffect(() => {
-    loadUsers();
-    loadStats();
-  }, []);
+    loadAllData();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      if (autoRefresh) {
+        loadAllData();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
+
+  const loadAllData = async () => {
+    await Promise.all([
+      loadUsers(),
+      loadStats(),
+      loadRecentChats()
+    ]);
+  };
 
   const loadUsers = async () => {
     setIsLoading(true);
@@ -60,6 +99,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLog
       const response = await fetch('/api/admin/users');
       const data = await response.json();
       setUsers(data);
+      setRecentUsers(data.slice(0, 5));
     } catch (error) {
       console.error('Error loading users:', error);
     } finally {
@@ -74,6 +114,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLog
       setStats(data);
     } catch (error) {
       console.error('Error loading stats:', error);
+    }
+  };
+
+  const loadRecentChats = async () => {
+    try {
+      const response = await fetch('/api/admin/chats');
+      const data = await response.json();
+      setRecentChats(data.slice(0, 5));
+    } catch (error) {
+      console.error('Error loading chats:', error);
     }
   };
 
@@ -99,14 +149,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLog
 
   const handleUserClick = (user: User) => {
     setSelectedUser(user);
-    setSelectedChat(null);
-    setChatMessages([]);
+    setShowUserModal(true);
     loadUserChats(user.id);
   };
 
   const handleChatClick = (chat: Chat) => {
     setSelectedChat(chat);
+    setShowChatModal(true);
     loadChatMessages(chat.id);
+  };
+
+  const handleRefresh = () => {
+    loadAllData();
   };
 
   const filteredUsers = users.filter(user =>
@@ -115,200 +169,239 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = false, onLog
     user.phone?.includes(searchTerm)
   );
 
+  const getModeLabel = (mode: string) => {
+    const labels: Record<string, string> = {
+      'consultant': 'مشاور',
+      'product': 'مدیر محصول',
+      'marketing': 'مدیر مارکتینگ',
+      'sales': 'مدیر فروش',
+      'finance': 'مدیر مالی',
+      'hr': 'مدیر منابع انسانی',
+      'analysis': 'تحلیلگر'
+    };
+    return labels[mode] || mode;
+  };
+
   return (
     <div className={`h-screen flex flex-col ${darkMode ? 'bg-[#0a0a0f] text-white' : 'bg-gray-50 text-gray-800'}`}>
       {/* Header */}
       <header className={`h-16 flex items-center justify-between px-6 border-b ${darkMode ? 'bg-[#12121a] border-purple-500/20' : 'bg-white border-gray-200'}`}>
         <div className="flex items-center gap-3">
-          <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-10 h-10 rounded-xl" />
+          <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-20 h-20 rounded-xl" />
           <div>
-            <h1 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>پنل مدیریت</h1>
-            <p className={`text-xs ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>مدیریت کاربران و چت‌ها</p>
+            <h1 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>پنل مدیریت بیزنس‌متر</h1>
+            <p className={`text-sm ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>داشبورد تحلیلی و مدیریت کاربران</p>
           </div>
         </div>
-        <button
-          onClick={onLogout}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            darkMode ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-red-100 text-red-600 hover:bg-red-200'
-          }`}
-        >
-          خروج
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleRefresh}
+            className={`p-2 rounded-lg transition-colors ${
+              darkMode ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30' : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
+            }`}
+            title="بروزرسانی"
+          >
+            <RefreshCw className="w-5 h-5" />
+          </button>
+          <button
+            onClick={onLogout}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              darkMode ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-red-100 text-red-600 hover:bg-red-200'
+            }`}
+          >
+            خروج
+          </button>
+        </div>
       </header>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className={`p-4 rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          {/* Total Users Card */}
+          <div className={`p-5 rounded-xl ${darkMode ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30' : 'bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/30 flex items-center justify-center">
                 <Users className="w-6 h-6 text-blue-500" />
               </div>
-              <div>
-                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>کل کاربران</p>
-                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{stats.totalUsers}</p>
-              </div>
+              <TrendingUp className="w-5 h-5 text-green-500" />
             </div>
+            <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>کل کاربران</p>
+            <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{stats.totalUsers}</p>
+            <p className="text-xs text-green-500 mt-2">+12% نسبت به ماه قبل</p>
           </div>
-          <div className={`p-4 rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                <Users className="w-6 h-6 text-amber-500" />
+
+          {/* Premium Users Card */}
+          <div className={`p-5 rounded-xl ${darkMode ? 'bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30' : 'bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/30 flex items-center justify-center">
+                <Crown className="w-6 h-6 text-amber-500" />
               </div>
-              <div>
-                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>کاربران Premium</p>
-                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{stats.premiumUsers}</p>
-              </div>
+              <TrendingUp className="w-5 h-5 text-green-500" />
             </div>
+            <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>کاربران Premium</p>
+            <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{stats.premiumUsers}</p>
+            <p className="text-xs text-green-500 mt-2">+8% نسبت به ماه قبل</p>
           </div>
-          <div className={`p-4 rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
+
+          {/* Total Chats Card */}
+          <div className={`p-5 rounded-xl ${darkMode ? 'bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/30' : 'bg-gradient-to-br from-green-50 to-green-100 border border-green-200'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-green-500/30 flex items-center justify-center">
                 <MessageSquare className="w-6 h-6 text-green-500" />
               </div>
-              <div>
-                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>کل چت‌ها</p>
-                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{stats.totalChats}</p>
-              </div>
+              <TrendingUp className="w-5 h-5 text-green-500" />
             </div>
+            <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>کل چت‌ها</p>
+            <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{stats.totalChats}</p>
+            <p className="text-xs text-green-500 mt-2">+25% نسبت به ماه قبل</p>
           </div>
-          <div className={`p-4 rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                <MessageSquare className="w-6 h-6 text-purple-500" />
-              </div>
-              <div>
-                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>کل پیام‌ها</p>
-                <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{stats.totalMessages}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex gap-4 px-6 pb-6 overflow-hidden">
-        {/* Users List */}
-        <div className={`w-80 flex flex-col rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
-          <div className="p-4 border-b ${darkMode ? 'border-purple-500/20' : 'border-gray-200'}">
-            <div className="relative">
-              <Search className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="جستجو..."
-                className={`w-full pr-10 pl-4 py-2 rounded-lg text-sm ${
-                  darkMode ? 'bg-[#1a1a24] border border-purple-500/20 text-white' : 'bg-gray-50 border border-gray-200 text-gray-800'
-                }`}
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+          {/* Total Messages Card */}
+          <div className={`p-5 rounded-xl ${darkMode ? 'bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30' : 'bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/30 flex items-center justify-center">
+                <Activity className="w-6 h-6 text-purple-500" />
               </div>
-            ) : (
-              filteredUsers.map((user) => (
-                <button
-                  key={user.id}
-                  onClick={() => handleUserClick(user)}
-                  className={`w-full p-3 rounded-lg text-right mb-2 transition-colors ${
-                    selectedUser?.id === user.id
-                      ? (darkMode ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-purple-100 border border-purple-200')
-                      : (darkMode ? 'hover:bg-purple-500/10' : 'hover:bg-gray-50')
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.name}</p>
-                    {user.hasPremium && (
-                      <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-xs rounded-full">Premium</span>
-                    )}
-                  </div>
-                  <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} dir="ltr">{user.email}</p>
-                  {user.phone && <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} dir="ltr">{user.phone}</p>}
-                  <div className="flex items-center justify-between mt-2">
-                    <p className={`text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                      {new Date(user.createdAt).toLocaleDateString('fa-IR')}
-                    </p>
-                    <p className={`text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                      {user.freeMessagesUsed} پیام
-                    </p>
-                  </div>
-                </button>
-              ))
-            )}
+              <TrendingUp className="w-5 h-5 text-green-500" />
+            </div>
+            <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>کل پیام‌ها</p>
+            <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{stats.totalMessages}</p>
+            <p className="text-xs text-green-500 mt-2">+18% نسبت به ماه قبل</p>
           </div>
         </div>
 
-        {/* Chats List */}
-        {selectedUser && (
-          <div className={`w-80 flex flex-col rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
-            <div className={`p-4 border-b ${darkMode ? 'border-purple-500/20' : 'border-gray-200'}`}>
-              <h3 className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>چت‌های {selectedUser.name}</h3>
+        {/* Recent Activity Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Recent Users */}
+          <div className={`p-5 rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>کاربران اخیر</h3>
+              <Users className={`w-5 h-5 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
             </div>
-            <div className="flex-1 overflow-y-auto p-2">
-              {userChats.length === 0 ? (
-                <p className={`text-center text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'} mt-4`}>چتی وجود ندارد</p>
-              ) : (
-                userChats.map((chat) => (
-                  <button
-                    key={chat.id}
-                    onClick={() => handleChatClick(chat)}
-                    className={`w-full p-3 rounded-lg text-right mb-2 transition-colors ${
-                      selectedChat?.id === chat.id
-                        ? (darkMode ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-purple-100 border border-purple-200')
-                        : (darkMode ? 'hover:bg-purple-500/10' : 'hover:bg-gray-50')
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-800'}`}>{chat.title}</p>
-                      {chat.mode && (
-                        <span className={`px-2 py-0.5 text-xs rounded-full ${
-                          darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
-                        }`}>
-                          {chat.mode === 'consultant' ? 'مشاور' : chat.mode}
-                        </span>
+            <div className="space-y-3">
+              {recentUsers.map((user) => (
+                <div key={user.id} className={`flex items-center gap-3 p-3 rounded-lg ${darkMode ? 'bg-[#1a1a24] hover:bg-[#1f1f2a]' : 'bg-gray-50 hover:bg-gray-100'} transition-colors cursor-pointer`} onClick={() => handleUserClick(user)}>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                    {user.name.charAt(0)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.name}</p>
+                      {user.hasPremium && (
+                        <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-xs rounded-full">Premium</span>
                       )}
                     </div>
-                    <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {new Date(chat.createdAt).toLocaleDateString('fa-IR')}
-                    </p>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Messages */}
-        {selectedChat && (
-          <div className={`flex-1 flex flex-col rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
-            <div className={`p-4 border-b ${darkMode ? 'border-purple-500/20' : 'border-gray-200'}`}>
-              <h3 className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{selectedChat.title}</h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {chatMessages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] p-3 rounded-lg ${
-                    msg.role === 'user'
-                      ? 'bg-purple-600 text-white'
-                      : (darkMode ? 'bg-[#1a1a24] text-gray-200' : 'bg-gray-100 text-gray-800')
-                  }`}>
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                    <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-purple-200' : (darkMode ? 'text-gray-500' : 'text-gray-400')}`}>
-                      {new Date(msg.createdAt).toLocaleString('fa-IR')}
+                    <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} dir="ltr">{user.email}</p>
+                  </div>
+                  <div className="text-left">
+                    <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {new Date(user.createdAt).toLocaleDateString('fa-IR')}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
-export default AdminDashboard;
+          {/* Recent Chats */}
+          <div className={`p-5 rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>چت‌های اخیر</h3>
+              <MessageSquare className={`w-5 h-5 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+            </div>
+            <div className="space-y-3">
+              {recentChats.map((chat) => (
+                <div key={chat.id} className={`flex items-center gap-3 p-3 rounded-lg ${darkMode ? 'bg-[#1a1a24] hover:bg-[#1f1f2a]' : 'bg-gray-50 hover:bg-gray-100'} transition-colors cursor-pointer`} onClick={() => handleChatClick(chat)}>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-800'}`}>{chat.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`px-2 py-0.5 text-xs rounded-full ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+                        {getModeLabel(chat.mode)}
+                      </span>
+                      <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {new Date(chat.updatedAt).toLocaleDateString('fa-IR')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content - با اسکرول */}
+      <div className="flex-1 overflow-y-auto px-6 pb-6" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+        <div className="grid grid-cols-1 gap-4">
+          {/* All Users Table */}
+          <div className={`rounded-xl ${darkMode ? 'bg-[#12121a] border border-purple-500/20' : 'bg-white border border-gray-200'}`}>
+            <div className={`p-4 border-b ${darkMode ? 'border-purple-500/20' : 'border-gray-200'}`}>
+              <h3 className={`font-bold mb-3 ${darkMode ? 'text-white' : 'text-gray-800'}`}>همه کاربران</h3>
+              <div className="relative">
+                <Search className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="جستجو نام، ایمیل، شماره..."
+                  className={`w-full pr-10 pl-4 py-2 rounded-lg text-sm ${
+                    darkMode ? 'bg-[#1a1a24] border border-purple-500/20 text-white placeholder-gray-500' : 'bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400'
+                  }`}
+                />
+              </div>
+            </div>
+            <div className="p-4">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <p className={`text-center text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'} py-8`}>کاربری یافت نشد</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {filteredUsers.map((user) => (
+                    <button
+                      key={user.id}
+                      onClick={() => handleUserClick(user)}
+                      className={`p-4 rounded-lg text-right transition-colors ${
+                        darkMode ? 'bg-[#1a1a24] hover:bg-[#1f1f2a] border border-purple-500/10' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <p className={`font-medium text-sm ${darkMode ? 'text-white' : 'text-gray-800'}`}>{user.name}</p>
+                        {user.hasPremium && (
+                          <Crown className="w-4 h-4 text-amber-500" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 mb-1">
+                        <Mail className={`w-3 h-3 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                        <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} dir="ltr">{user.email}</p>
+                      </div>
+                      {user.phone && (
+                        <div className="flex items-center gap-1 mb-1">
+                          <Phone className={`w-3 h-3 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                          <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} dir="ltr">{user.phone}</p>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-1">
+                          <Calendar className={`w-3 h-3 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+                          <p className={`text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                            {new Date(user.createdAt).toLocaleDateString('fa-IR')}
+                          </p>
+                        </div>
+                        <p className={`text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                          {user.freeMessagesUsed} پیام
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>

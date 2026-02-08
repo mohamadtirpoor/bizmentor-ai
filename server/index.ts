@@ -128,7 +128,7 @@ app.use(express.static(distPath));
 // Storage موقت برای کدهای تایید (در production باید از Redis استفاده کنی)
 const verificationCodes = new Map<string, { code: string; expiresAt: number }>();
 
-// ============ AI API CONFIG (Arvan Cloud) ============
+// ============ AI API CONFIG (Arvan Cloud - Qwen) ============
 const ARVAN_ENDPOINT = 'https://arvancloudai.ir/gateway/models/Qwen3-30B-A3B/MzngmyQ1gA1LhnhOwlLFW4xAv3F4mH_B-aDTOTJCiCyggiFk4qUOtP-TJ02Vao2geVMmoSTiu2EMHg8HqwJQNzMHr7abTuS3Xy6do9APpuIs-yXdqd_S-s597MXlaLDTiURmaY47xj--xPHdHBtLO3GLcTllV_IIvxS62f7mHyCpQzNQpL66GwbZrwRNyHepubqq9hOIRwNIfpKcUV6i-qZNdxyUROnUkZs7HFbQWuHg90CUsQQP5RZogWFCgE97/v1';
 const ARVAN_API_KEY = 'b6a3781c-f36c-5631-939c-b3c1c0230d4b';
 
@@ -175,7 +175,7 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    console.log('🚀 Calling Arvan Cloud API...');
+    console.log('🚀 Calling Arvan Cloud AI API (Qwen)...');
     
     const stream = await openai.chat.completions.create({
       model: 'Qwen3-30B-A3B',

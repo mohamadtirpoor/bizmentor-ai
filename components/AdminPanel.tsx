@@ -70,6 +70,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ plans, setPlans, onLogout, dark
   const [chatMessages, setChatMessages] = useState<MessageItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
 
   const fetchStats = async () => {
     try {
@@ -136,6 +137,63 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ plans, setPlans, onLogout, dark
 
   return (
     <div className="flex h-full w-full bg-[#050505]">
+      {/* User Details Modal */}
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col border border-white/10">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 font-bold text-lg">
+                  {selectedUser.name.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">{selectedUser.name}</h3>
+                  <p className="text-xs text-gray-400">{selectedUser.email}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedUser(null)} className="p-2 hover:bg-white/10 rounded-lg text-gray-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-white/5 rounded-xl">
+                  <p className="text-xs text-gray-500 mb-1">وضعیت اشتراک</p>
+                  <p className={`text-lg font-bold ${selectedUser.hasPremium ? 'text-amber-400' : 'text-gray-400'}`}>
+                    {selectedUser.hasPremium ? 'Premium' : 'رایگان'}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-xl">
+                  <p className="text-xs text-gray-500 mb-1">پیام‌های استفاده شده</p>
+                  <p className="text-lg font-bold text-white">{selectedUser.freeMessagesUsed}</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-xl col-span-2">
+                  <p className="text-xs text-gray-500 mb-1">تاریخ عضویت</p>
+                  <p className="text-lg font-bold text-white">{new Date(selectedUser.createdAt).toLocaleDateString('fa-IR')}</p>
+                </div>
+              </div>
+              <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                <p className="text-sm text-purple-300">شناسه کاربر: {selectedUser.id}</p>
+              </div>
+            </div>
+            <div className="p-4 border-t border-white/10 flex gap-2">
+              <button 
+                onClick={() => { deleteUser(selectedUser.id); setSelectedUser(null); }}
+                className="flex-1 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-all"
+              >
+                حذف کاربر
+              </button>
+              <button 
+                onClick={() => setSelectedUser(null)}
+                className="flex-1 px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg transition-all"
+              >
+                بستن
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chat Modal */}
       {selectedChat && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -217,7 +275,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ plans, setPlans, onLogout, dark
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="md:hidden flex overflow-x-auto p-4 gap-2 border-b border-white/10">
           <button onClick={() => setActiveView('dashboard')} className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap ${activeView === 'dashboard' ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400'}`}>داشبورد</button>
           <button onClick={() => setActiveView('users')} className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap ${activeView === 'users' ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400'}`}>کاربران</button>
@@ -225,7 +283,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ plans, setPlans, onLogout, dark
           <button onClick={() => setActiveView('plans')} className={`px-4 py-2 rounded-lg text-sm whitespace-nowrap ${activeView === 'plans' ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400'}`}>اشتراک‌ها</button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
           <div className="max-w-5xl mx-auto w-full">
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-white mb-2">
@@ -311,7 +369,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ plans, setPlans, onLogout, dark
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {usersList.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase())).map((user) => (
-                        <tr key={user.id} className="text-sm text-gray-300 hover:bg-white/5">
+                        <tr key={user.id} className="text-sm text-gray-300 hover:bg-white/5 cursor-pointer" onClick={() => setSelectedUser(user)}>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 font-bold">{user.name.charAt(0)}</div>
@@ -324,7 +382,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ plans, setPlans, onLogout, dark
                           <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-xs ${user.hasPremium ? 'bg-amber-500/20 text-amber-400' : 'bg-gray-500/20 text-gray-400'}`}>{user.hasPremium ? 'Premium' : 'رایگان'}</span></td>
                           <td className="px-6 py-4 text-gray-400">{user.freeMessagesUsed}/1</td>
                           <td className="px-6 py-4 text-gray-500">{new Date(user.createdAt).toLocaleDateString('fa-IR')}</td>
-                          <td className="px-6 py-4"><button onClick={() => deleteUser(user.id)} className="p-1 hover:bg-red-500/20 rounded text-red-400"><Trash2 className="w-4 h-4" /></button></td>
+                          <td className="px-6 py-4"><button onClick={(e) => { e.stopPropagation(); deleteUser(user.id); }} className="p-1 hover:bg-red-500/20 rounded text-red-400"><Trash2 className="w-4 h-4" /></button></td>
                         </tr>
                       ))}
                     </tbody>

@@ -270,6 +270,26 @@ function ChatInterface({
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Load messages from localStorage on mount
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('currentChatMessages');
+    if (savedMessages && !initialMessages) {
+      try {
+        const parsed = JSON.parse(savedMessages);
+        setMessages(parsed);
+      } catch (error) {
+        console.error('Error loading saved messages:', error);
+      }
+    }
+  }, [initialMessages]);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('currentChatMessages', JSON.stringify(messages));
+    }
+  }, [messages]);
+
   useEffect(() => {
     if (autoScroll && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -361,6 +381,58 @@ function ChatInterface({
       );
       
       const finalMessages = [...newMessages, { id: botMsgId, role: MessageRole.MODEL, text: fullText }];
+      
+      // Save to database
+      try {
+        const userData = localStorage.getItem('userData');
+        if (userData) {
+          const user = JSON.parse(userData);
+          
+          // Create or get chat
+          let chatId = localStorage.getItem('currentChatId');
+          if (!chatId) {
+            const chatResponse = await fetch('/api/chats', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: user.id,
+                title: userMsg.text.slice(0, 50),
+                mode: selectedExpert?.id || 'consultant'
+              })
+            });
+            const chatData = await chatResponse.json();
+            chatId = chatData.id.toString();
+            localStorage.setItem('currentChatId', chatId);
+          }
+          
+          // Save user message
+          await fetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chatId: parseInt(chatId),
+              role: 'user',
+              content: userMsg.text,
+              metadata: { expertId: selectedExpert?.id }
+            })
+          });
+          
+          // Save bot message
+          await fetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chatId: parseInt(chatId),
+              role: 'model',
+              content: fullText,
+              metadata: { expertId: selectedExpert?.id }
+            })
+          });
+        }
+      } catch (dbError) {
+        console.error('Error saving to database:', dbError);
+      }
+      
       if (onSaveChat) {
         onSaveChat(finalMessages, userMsg.text.slice(0, 30) + (userMsg.text.length > 30 ? '...' : ''));
       }
@@ -425,7 +497,7 @@ function ChatInterface({
       <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto pb-48">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-6">
-            <img src="/logo/Untitled-1.png" alt="بیزنس‌متر" className="w-16 h-16 rounded-2xl object-contain mb-6" />
+            <img src="/logo/Untitled-1.png" alt="بیزنس‌متر" className="w-24 h-24 rounded-2xl object-contain mb-6" />
             <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>سلام! من بیزنس‌متر هستم</h2>
             <p className={`text-center max-w-md mb-8 ${darkMode ? 'text-purple-300/60' : 'text-gray-500'}`}>
               مشاور هوشمند کسب‌وکار شما. آماده‌ام تا با تحلیل دقیق به رشد بیزینس شما کمک کنم.
@@ -436,22 +508,16 @@ function ChatInterface({
             {messages.map((msg) => {
               const expert = messageExperts[msg.id];
               return (
-              <div key={msg.id} className={`flex gap-3 sm:gap-4 ${msg.role === MessageRole.USER ? 'justify-end' : 'justify-start'}`}>
-                {msg.role === MessageRole.MODEL && (
+              <div key={msg.id} className={`flex gap-3 sm:gap-4 ${msg.role === MessageRole.USER ? 'justify-start' : 'justify-end'}`}>
+                {msg.role === MessageRole.USER && (
                   <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    expert 
-                      ? (darkMode ? 'bg-purple-500/20' : 'bg-purple-100')
-                      : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                    darkMode ? 'bg-purple-500/20' : 'bg-purple-100'
                   }`}>
-                    {expert ? (
-                      <ExpertIcon iconName={expert.iconName} className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${expert.color}`} />
-                    ) : (
-                      <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
-                    )}
+                    <User className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${darkMode ? 'text-purple-300' : 'text-purple-600'}`} />
                   </div>
                 )}
                 
-                <div className={`flex-1 max-w-[85%] sm:max-w-[80%] md:max-w-[75%] ${msg.role === MessageRole.USER ? 'text-left' : 'text-right'}`}>
+                <div className={`flex-1 max-w-[85%] sm:max-w-[80%] md:max-w-[75%] ${msg.role === MessageRole.USER ? 'text-right' : 'text-right'}`}>
                   {msg.role === MessageRole.MODEL && expert && (
                     <div className={`inline-flex items-center gap-1.5 mb-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                       darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-600'
@@ -463,10 +529,10 @@ function ChatInterface({
                   
                   <div className={`inline-block w-full px-3 py-2.5 sm:px-4 sm:py-3 rounded-2xl ${
                     msg.role === MessageRole.USER
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-br-sm'
+                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-tr-sm'
                       : (darkMode
-                          ? 'bg-[#1a1a24] border border-purple-500/20 text-gray-100 rounded-bl-sm'
-                          : 'bg-gray-50 border border-gray-200 text-gray-800 rounded-bl-sm')
+                          ? 'bg-[#1a1a24] border border-purple-500/20 text-gray-100 rounded-tl-sm'
+                          : 'bg-gray-50 border border-gray-200 text-gray-800 rounded-tl-sm')
                   }`}>
                     {msg.isThinking ? (
                       <div className={`flex items-center gap-2 ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>
@@ -485,11 +551,17 @@ function ChatInterface({
                   </div>
                 </div>
 
-                {msg.role === MessageRole.USER && (
+                {msg.role === MessageRole.MODEL && (
                   <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    darkMode ? 'bg-purple-500/20' : 'bg-purple-100'
+                    expert 
+                      ? (darkMode ? 'bg-purple-500/20' : 'bg-purple-100')
+                      : 'bg-gradient-to-br from-purple-500 to-purple-600'
                   }`}>
-                    <User className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${darkMode ? 'text-purple-300' : 'text-purple-600'}`} />
+                    {expert ? (
+                      <ExpertIcon iconName={expert.iconName} className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${expert.color}`} />
+                    ) : (
+                      <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                    )}
                   </div>
                 )}
               </div>

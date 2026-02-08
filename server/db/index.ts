@@ -6,15 +6,22 @@ const connectionString = process.env.DATABASE_URL || 'postgresql://root:jpMjfUFd
 
 console.log('🔌 Connecting to database...');
 
-const client = postgres(connectionString, {
-  max: 10,
-  idle_timeout: 20,
-  connect_timeout: 10,
-});
+let db: any = null;
 
-export const db = drizzle(client, { schema });
+try {
+  const client = postgres(connectionString, {
+    max: 10,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  });
+  
+  db = drizzle(client, { schema });
+  console.log('✅ Database connected successfully');
+} catch (error) {
+  console.log('⚠️ Database connection failed (running without database)');
+  db = null;
+}
 
-console.log('✅ Database connected successfully');
-
+export { db };
 export * from './schema';
 

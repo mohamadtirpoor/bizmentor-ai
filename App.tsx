@@ -143,6 +143,8 @@ const App: React.FC = () => {
     setActiveChatId(newChatId);
     setChatKey(prev => prev + 1);
     setActiveTab('chat');
+    localStorage.removeItem('currentChatId'); // Reset chat ID for new conversation
+    localStorage.removeItem('currentChatMessages'); // Clear saved messages
   };
 
   const handleSaveChat = (messages: any[], title: string) => {
@@ -246,10 +248,10 @@ const App: React.FC = () => {
             {/* Header */}
             <div className={`p-4 flex items-center justify-between ${darkMode ? 'shadow-[0_2px_10px_rgba(139,92,246,0.1)]' : 'shadow-sm'}`}>
               <div className="flex items-center gap-3">
-                <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-10 h-10 rounded-xl object-contain" />
+                <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-20 h-20 rounded-xl object-contain" />
                 <div>
-                  <h1 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</h1>
-                  <p className={`text-[10px] ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>مشاور هوشمند کسب‌وکار</p>
+                  <h1 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</h1>
+                  <p className={`text-sm ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>مشاور هوشمند کسب‌وکار</p>
                 </div>
               </div>
               <button onClick={() => setShowMobileSidebar(false)} className={`p-2 rounded-lg ${darkMode ? 'text-gray-400 hover:bg-purple-500/20' : 'text-gray-500 hover:bg-gray-100'}`}>
@@ -366,10 +368,10 @@ const App: React.FC = () => {
         <div className={`p-4 ${darkMode ? 'shadow-[0_2px_10px_rgba(139,92,246,0.1)]' : 'shadow-sm'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-10 h-10 rounded-xl object-contain" />
+              <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-16 h-16 rounded-xl object-contain" />
               <div>
-                <h1 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</h1>
-                <p className={`text-[10px] ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>مشاور هوشمند کسب‌وکار</p>
+                <h1 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</h1>
+                <p className={`text-xs ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>مشاور هوشمند کسب‌وکار</p>
               </div>
             </div>
             <button
@@ -490,8 +492,8 @@ const App: React.FC = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-8 h-8 rounded-lg object-contain" />
-            <span className={`font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</span>
+            <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-16 h-16 rounded-lg object-contain" />
+            <span className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بیزنس‌متر</span>
           </div>
 
           {/* Desktop - Empty space */}
