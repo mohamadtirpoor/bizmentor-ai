@@ -14,7 +14,10 @@ import {
   Filter,
   Download,
   BarChart3,
-  Activity
+  Activity,
+  X,
+  User,
+  Bot
 } from 'lucide-react';
 
 interface User {
@@ -405,3 +408,117 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = true, onLogo
           </div>
         </div>
       </div>
+
+      {/* User Details Modal */}
+      {showUserModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col border border-white/10">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300 font-bold text-lg">
+                  {selectedUser.name.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">{selectedUser.name}</h3>
+                  <p className="text-xs text-gray-400">{selectedUser.email}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowUserModal(false)} className="p-2 hover:bg-white/10 rounded-lg text-gray-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-white/5 rounded-xl">
+                  <p className="text-xs text-gray-500 mb-1">وضعیت اشتراک</p>
+                  <p className={`text-lg font-bold ${selectedUser.hasPremium ? 'text-amber-400' : 'text-gray-400'}`}>
+                    {selectedUser.hasPremium ? 'Premium' : 'رایگان'}
+                  </p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-xl">
+                  <p className="text-xs text-gray-500 mb-1">پیام‌های استفاده شده</p>
+                  <p className="text-lg font-bold text-white">{selectedUser.freeMessagesUsed}</p>
+                </div>
+                <div className="p-4 bg-white/5 rounded-xl col-span-2">
+                  <p className="text-xs text-gray-500 mb-1">تاریخ عضویت</p>
+                  <p className="text-lg font-bold text-white">{new Date(selectedUser.createdAt).toLocaleDateString('fa-IR')}</p>
+                </div>
+              </div>
+              <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                <p className="text-sm text-purple-300">شناسه کاربر: {selectedUser.id}</p>
+              </div>
+              {userChats.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-bold text-white mb-3">چت‌های کاربر ({userChats.length})</h4>
+                  <div className="space-y-2">
+                    {userChats.map((chat) => (
+                      <button
+                        key={chat.id}
+                        onClick={() => handleChatClick(chat)}
+                        className="w-full p-3 bg-white/5 hover:bg-white/10 rounded-lg text-right transition-colors"
+                      >
+                        <p className="text-sm text-white font-medium">{chat.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+                            {getModeLabel(chat.mode)}
+                          </span>
+                          <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {new Date(chat.updatedAt).toLocaleDateString('fa-IR')}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-white/10">
+              <button 
+                onClick={() => setShowUserModal(false)}
+                className="w-full px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg transition-all"
+              >
+                بستن
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Details Modal */}
+      {showChatModal && selectedChat && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-2xl w-full max-w-3xl max-h-[80vh] flex flex-col border border-white/10">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <div>
+                <h3 className="text-lg font-bold text-white">{selectedChat.title}</h3>
+                <p className="text-xs text-gray-400">{getModeLabel(selectedChat.mode)}</p>
+              </div>
+              <button onClick={() => setShowChatModal(false)} className="p-2 hover:bg-white/10 rounded-lg text-gray-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {chatMessages.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">پیامی یافت نشد</div>
+              ) : (
+                chatMessages.map((msg) => (
+                  <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-gray-700' : 'bg-purple-600'}`}>
+                      {msg.role === 'user' ? <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-white" />}
+                    </div>
+                    <div className={`max-w-[80%] p-3 rounded-xl ${msg.role === 'user' ? 'bg-white/10 rounded-tr-none' : 'bg-purple-900/30 rounded-tl-none'}`}>
+                      <p className="text-sm text-gray-200 whitespace-pre-wrap">{msg.content}</p>
+                      <span className="text-[10px] text-gray-600 mt-1 block">{new Date(msg.createdAt).toLocaleString('fa-IR')}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdminDashboard;
