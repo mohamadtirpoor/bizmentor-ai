@@ -21,3 +21,4 @@ Allow: /blog/sales-techniques
 Allow: /blog/financial-management
 Allow: /blog/hr-management
 Allow: /blog/business-analytics
+Allow: /blog/ai-business-management-guide

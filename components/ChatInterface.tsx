@@ -1,8 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { User, Bot, Sparkles, Star, ArrowUp, Package, Megaphone, Users, X, TrendingUp, DollarSign } from 'lucide-react';
+import { User, Bot, Sparkles, Star, ArrowUp, Package, Megaphone, Users, X, TrendingUp, DollarSign, Search, Plus, ChevronDown, Zap, Crown } from 'lucide-react';
 import { ChatMode, Message, MessageRole } from '../types';
 import { streamChatResponse } from '../services/geminiService';
+
+// AI Models configuration
+const AI_MODELS = [
+  {
+    id: 'mark-zuckerberg',
+    name: 'مارک زاکربرگ',
+    description: 'مدل رایگان - مناسب سوالات عمومی',
+    icon: User,
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-500/20',
+    isPremium: false
+  },
+  {
+    id: 'elon-musk',
+    name: 'ایلان ماسک',
+    description: 'مدل حرفه‌ای - تسک‌محور و تخصصی',
+    icon: Zap,
+    color: 'text-purple-400',
+    bgColor: 'bg-purple-500/20',
+    isPremium: false // موقتاً برای تست باز است
+  }
+];
 
 interface ExpertMode {
   id: string;
@@ -266,9 +288,31 @@ function ChatInterface({
   const [messageExperts, setMessageExperts] = useState<Record<string, ExpertMode | null>>({});
   const [autoScroll, setAutoScroll] = useState(true);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [enableDeepSearch, setEnableDeepSearch] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]); // Default: Mark Zuckerberg
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const modelSelectorRef = useRef<HTMLDivElement>(null);
+
+  // Close model selector when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target as Node)) {
+        setShowModelSelector(false);
+      }
+    };
+
+    if (showModelSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showModelSelector]);
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -366,6 +410,28 @@ function ChatInterface({
 
     try {
       let fullText = '';
+      let displayedText = '';
+      let typingQueue: string[] = [];
+      let isTyping = false;
+
+      // Function to type characters smoothly
+      const typeCharacters = async () => {
+        if (isTyping) return;
+        isTyping = true;
+
+        while (typingQueue.length > 0 && !controller.signal.aborted) {
+          const char = typingQueue.shift()!;
+          displayedText += char;
+          setMessages(prev => prev.map(m => m.id === botMsgId ? { ...m, text: displayedText, isThinking: false } : m));
+          
+          // Adjust typing speed based on character
+          const delay = char === ' ' ? 10 : char === '\n' ? 20 : 15;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        isTyping = false;
+      };
+
       await streamChatResponse(
         messages,
         userMsg.text,
@@ -373,12 +439,29 @@ function ChatInterface({
         (chunk) => {
           if (controller.signal.aborted) return;
           fullText += chunk;
-          setMessages(prev => prev.map(m => m.id === botMsgId ? { ...m, text: fullText, isThinking: false } : m));
+          
+          // Add characters to typing queue
+          for (const char of chunk) {
+            typingQueue.push(char);
+          }
+          
+          // Start typing if not already typing
+          if (!isTyping) {
+            typeCharacters();
+          }
         },
         () => {},
         selectedExpert?.systemPrompt,
-        selectedExpert?.id
+        selectedExpert?.id,
+        enableDeepSearch,
+        selectedModel.id, // مدل انتخاب شده
+        localStorage.getItem('currentChatId') || undefined // chatId برای task management
       );
+      
+      // Wait for all remaining characters to be typed
+      while (typingQueue.length > 0 && !controller.signal.aborted) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
       
       const finalMessages = [...newMessages, { id: botMsgId, role: MessageRole.MODEL, text: fullText }];
       
@@ -624,6 +707,70 @@ function ChatInterface({
               ? 'bg-white/5 border-purple-500/30 shadow-[0_8px_32px_rgba(139,92,246,0.2)]'
               : 'bg-white/80 border-gray-200 shadow-[0_8px_32px_rgba(0,0,0,0.1)]'
           }`}>
+            {/* Options Menu Button - Right Side */}
+            <div className="relative">
+              <button
+                onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                disabled={!isLoggedIn}
+                title="گزینه‌های بیشتر"
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 ${
+                  darkMode
+                    ? 'bg-white/10 text-purple-400/60 hover:bg-white/20 hover:text-purple-400'
+                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
+                }`}
+              >
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+              
+              {/* Options Dropdown Menu */}
+              {showOptionsMenu && (
+                <div className={`absolute bottom-full right-0 mb-2 w-48 rounded-xl shadow-2xl border overflow-hidden ${
+                  darkMode
+                    ? 'bg-gray-800/95 border-purple-500/30 backdrop-blur-xl'
+                    : 'bg-white border-gray-200'
+                }`}>
+                  <button
+                    onClick={() => {
+                      setEnableDeepSearch(!enableDeepSearch);
+                      setShowOptionsMenu(false);
+                    }}
+                    className={`w-full px-4 py-3 flex items-center gap-3 transition-all ${
+                      darkMode
+                        ? 'hover:bg-white/10 text-gray-200'
+                        : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <Search className={`w-5 h-5 ${
+                      enableDeepSearch
+                        ? 'text-green-500'
+                        : darkMode
+                          ? 'text-purple-400/60'
+                          : 'text-gray-400'
+                    }`} />
+                    <div className="flex-1 text-right">
+                      <div className={`text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                        جستجوی عمیق
+                      </div>
+                      <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {enableDeepSearch ? 'فعال' : 'غیرفعال'}
+                      </div>
+                    </div>
+                    <div className={`w-10 h-6 rounded-full transition-all ${
+                      enableDeepSearch
+                        ? 'bg-green-500'
+                        : darkMode
+                          ? 'bg-gray-600'
+                          : 'bg-gray-300'
+                    }`}>
+                      <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-all ${
+                        enableDeepSearch ? 'mr-5' : 'mr-1'
+                      }`} />
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+            
             <textarea
               ref={textareaRef}
               value={input}
@@ -639,6 +786,79 @@ function ChatInterface({
                 darkMode ? 'text-gray-200 placeholder-purple-400/40' : 'text-gray-700 placeholder-gray-400'
               }`}
             />
+            
+            {/* Model Selector - Inside Input Box */}
+            <div ref={modelSelectorRef} className="relative z-[150]">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Toggle model selector');
+                  setShowModelSelector(!showModelSelector);
+                }}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all ${
+                  darkMode
+                    ? 'bg-white/10 text-gray-200 hover:bg-white/20'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <selectedModel.icon className={`w-3.5 h-3.5 ${selectedModel.color}`} />
+                <span className="hidden sm:inline">{selectedModel.name}</span>
+                {selectedModel.isPremium && (
+                  <Crown className="w-3 h-3 text-yellow-500" />
+                )}
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+              
+              {/* Model Dropdown */}
+              {showModelSelector && (
+                <div 
+                  className={`absolute bottom-full left-0 mb-2 w-52 rounded-xl shadow-2xl border overflow-hidden z-[200] ${
+                    darkMode
+                      ? 'bg-gray-800/95 border-purple-500/30 backdrop-blur-xl'
+                      : 'bg-white border-gray-200'
+                  }`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className={`px-3 py-2 border-b ${darkMode ? 'border-purple-500/20 text-purple-300' : 'border-gray-100 text-gray-500'}`}>
+                    <span className="text-xs font-medium">انتخاب مدل AI</span>
+                  </div>
+                  {AI_MODELS.map((model) => (
+                    <button
+                      type="button"
+                      key={model.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('Model clicked:', model.id, model.name);
+                        setSelectedModel(model);
+                        setShowModelSelector(false);
+                      }}
+                      className={`w-full px-3 py-2.5 flex items-center gap-2.5 transition-all ${
+                        selectedModel.id === model.id
+                          ? (darkMode ? 'bg-purple-500/20' : 'bg-purple-50')
+                          : (darkMode ? 'hover:bg-white/10' : 'hover:bg-gray-50')
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${model.bgColor}`}>
+                        <model.icon className={`w-4 h-4 ${model.color}`} />
+                      </div>
+                      <div className="flex-1 text-right">
+                        <div className={`flex items-center gap-1.5 text-sm font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                          {model.name}
+                          {model.isPremium && <Crown className="w-3 h-3 text-yellow-500" />}
+                        </div>
+                        <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {model.description}
+                        </div>
+                      </div>
+                      {selectedModel.id === model.id && (
+                        <div className={`w-2 h-2 rounded-full ${darkMode ? 'bg-purple-400' : 'bg-purple-600'}`} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             
             {isLoading ? (
               <button
@@ -673,6 +893,7 @@ function ChatInterface({
       </div>
 
       {showExpertMenu && <div className="fixed inset-0 z-40" onClick={() => setShowExpertMenu(false)} />}
+      {showOptionsMenu && <div className="fixed inset-0 z-40" onClick={() => setShowOptionsMenu(false)} />}
     </div>
   );
 }

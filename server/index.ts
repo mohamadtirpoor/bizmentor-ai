@@ -1,10 +1,27 @@
 import express from 'express';
 import cors from 'cors';
 import OpenAI from 'openai';
-import { db, users, chats, messages } from './db';
+import { db, users, chats, messages, learnedKnowledge, conversationFeedback, tasks } from './db';
 import { eq, desc, count, sql } from 'drizzle-orm';
 import { loadExpertKnowledge } from './knowledgeService';
+import { 
+  getRelevantKnowledge, 
+  saveLearnedKnowledge, 
+  extractLearningFromConversation,
+  processNewConversationsForLearning,
+  getLearningStats 
+} from './learningService';
+import { searchWebSimple, formatSearchResults } from './searchService';
 import { sendVerificationEmail, generateVerificationCode } from './emailService';
+import { 
+  extractTasks, 
+  createTask, 
+  getTasksForChat, 
+  updateTaskStatus, 
+  detectStatusUpdates, 
+  buildTaskContext,
+  TaskStatus 
+} from './taskManager';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import postgres from 'postgres';
@@ -52,7 +69,121 @@ app.get('/api/db-test', async (req, res) => {
   }
 });
 
-// Database initialization endpoint (admin only)
+// Database initialization endpoint (admin only) - ADDS NEW TABLES ONLY
+app.post('/api/db-add-tables', async (req, res) => {
+  try {
+    const { adminKey } = req.body;
+    
+    // Simple admin key check
+    if (adminKey !== 'mohamad.tir1383') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    
+    const connectionString = process.env.DATABASE_URL || 'postgresql://root:jpMjfUFd8b2DlnaMkcSX6ctd@businessmeter:5432/postgres';
+    const sqlClient = postgres(connectionString);
+    
+    // Check if tables exist and create only if they don't
+    try {
+      // Check if learned_knowledge exists
+      const learnedKnowledgeExists = await sqlClient`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'learned_knowledge'
+        )
+      `;
+      
+      if (!learnedKnowledgeExists[0].exists) {
+        await sqlClient`
+          CREATE TABLE learned_knowledge (
+            id SERIAL PRIMARY KEY,
+            question TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            category TEXT,
+            quality_score INTEGER DEFAULT 0,
+            usage_count INTEGER DEFAULT 0,
+            source_message_id INTEGER,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+          )
+        `;
+        console.log('✅ learned_knowledge table created');
+      } else {
+        console.log('ℹ️ learned_knowledge table already exists');
+      }
+      
+      // Check if conversation_feedback exists
+      const feedbackExists = await sqlClient`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'conversation_feedback'
+        )
+      `;
+      
+      if (!feedbackExists[0].exists) {
+        await sqlClient`
+          CREATE TABLE conversation_feedback (
+            id SERIAL PRIMARY KEY,
+            chat_id INTEGER REFERENCES chats(id),
+            message_id INTEGER REFERENCES messages(id),
+            is_helpful BOOLEAN,
+            feedback_text TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+          )
+        `;
+        console.log('✅ conversation_feedback table created');
+      } else {
+        console.log('ℹ️ conversation_feedback table already exists');
+      }
+      
+      // Check if tasks exists
+      const tasksExists = await sqlClient`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'tasks'
+        )
+      `;
+      
+      if (!tasksExists[0].exists) {
+        await sqlClient`
+          CREATE TABLE tasks (
+            id SERIAL PRIMARY KEY,
+            chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+            description TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            metadata JSONB,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW(),
+            completed_at TIMESTAMP
+          )
+        `;
+        console.log('✅ tasks table created');
+      } else {
+        console.log('ℹ️ tasks table already exists');
+      }
+      
+    } catch (error: any) {
+      console.error('Error creating tables:', error);
+      await sqlClient.end();
+      return res.status(500).json({ 
+        error: 'Failed to create tables', 
+        message: error.message 
+      });
+    }
+    
+    await sqlClient.end();
+    
+    res.json({ 
+      success: true, 
+      message: 'New tables added successfully (existing data preserved)'
+    });
+  } catch (error: any) {
+    console.error('Database add tables error:', error);
+    res.status(500).json({ 
+      error: 'Database operation failed', 
+      message: error.message
+    });
+  }
+});
 app.post('/api/db-init', async (req, res) => {
   try {
     const { adminKey } = req.body;
@@ -106,6 +237,31 @@ app.post('/api/db-init', async (req, res) => {
       )
     `;
     
+    await sqlClient`
+      CREATE TABLE learned_knowledge (
+        id SERIAL PRIMARY KEY,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        category TEXT,
+        quality_score INTEGER DEFAULT 0,
+        usage_count INTEGER DEFAULT 0,
+        source_message_id INTEGER,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    
+    await sqlClient`
+      CREATE TABLE conversation_feedback (
+        id SERIAL PRIMARY KEY,
+        chat_id INTEGER REFERENCES chats(id),
+        message_id INTEGER REFERENCES messages(id),
+        is_helpful BOOLEAN,
+        feedback_text TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    
     await sqlClient.end();
     
     res.json({ 
@@ -128,10 +284,17 @@ app.use(express.static(distPath));
 // Storage موقت برای کدهای تایید (در production باید از Redis استفاده کنی)
 const verificationCodes = new Map<string, { code: string; expiresAt: number }>();
 
-// ============ AI API CONFIG (Arvan Cloud - Qwen) ============
+// ============ AI API CONFIG ============
+
+// Model 1: Mark Zuckerberg (Free) - Arvan Cloud Qwen
 const ARVAN_ENDPOINT = 'https://arvancloudai.ir/gateway/models/Qwen3-30B-A3B/MzngmyQ1gA1LhnhOwlLFW4xAv3F4mH_B-aDTOTJCiCyggiFk4qUOtP-TJ02Vao2geVMmoSTiu2EMHg8HqwJQNzMHr7abTuS3Xy6do9APpuIs-yXdqd_S-s597MXlaLDTiURmaY47xj--xPHdHBtLO3GLcTllV_IIvxS62f7mHyCpQzNQpL66GwbZrwRNyHepubqq9hOIRwNIfpKcUV6i-qZNdxyUROnUkZs7HFbQWuHg90CUsQQP5RZogWFCgE97/v1';
 const ARVAN_API_KEY = 'b6a3781c-f36c-5631-939c-b3c1c0230d4b';
 
+// Model 2: Elon Musk (Premium) - OSS GPT
+const OSS_GPT_ENDPOINT = 'https://oss-gpt.ir/api/v1';
+const OSS_GPT_API_KEY = '66bccbb2-0561-5727-9a5d-57347ee3ec9b';
+
+// OpenAI client for Model 1 (Mark Zuckerberg - Free)
 const openai = new OpenAI({
   baseURL: ARVAN_ENDPOINT,
   apiKey: ARVAN_API_KEY,
@@ -142,14 +305,91 @@ const openai = new OpenAI({
   }
 });
 
+// OpenAI client for Model 2 (Elon Musk - Premium)
+const ossGptClient = new OpenAI({
+  baseURL: OSS_GPT_ENDPOINT,
+  apiKey: OSS_GPT_API_KEY,
+  timeout: 60000,
+  maxRetries: 2,
+});
+
+// Model configurations
+const AI_MODELS = {
+  'mark-zuckerberg': {
+    name: 'مارک زاکربرگ',
+    description: 'مدل رایگان - مناسب سوالات عمومی',
+    isPremium: false,
+    client: openai,
+    model: 'Qwen3-30B-A3B',
+    systemPrompt: `شما یک مشاور کسب‌وکار هوشمند و خلاق هستید. پاسخ‌های خود را به زبان فارسی و با لحنی دوستانه و حرفه‌ای ارائه دهید.`
+  },
+  'elon-musk': {
+    name: 'ایلان ماسک',
+    description: 'مدل حرفه‌ای - تسک‌محور و تخصصی',
+    isPremium: true,
+    client: openai,
+    model: 'Qwen3-30B-A3B',
+    systemPrompt: `شما یک دستیار اجرایی حرفه‌ای و تسک‌محور هستید به نام "ایلان ماسک".
+
+## 🎯 شخصیت و رویکرد:
+- دستیار اجرایی که کارها را پیگیری می‌کند
+- کارآفرین، نوآور و استراتژیست
+- مستقیم، صریح و نتیجه‌گرا
+- گرم، دوستانه و انگیزه‌بخش
+- **مهم: هر پاسخ را با یک جمله احساسی/تشویقی شروع کنید** (مثل "عالیه! بریم جلو 🚀" یا "من همیشه پشتت هستم 💪")
+
+## 📋 مدیریت تسک‌ها:
+
+### شناسایی تسک:
+- وقتی کاربر کاری را توضیح می‌دهد، آن را به عنوان تسک شناسایی کنید
+- تسک‌ها را با فرمت **[TASK: توضیحات تسک]** در پاسخ خود مشخص کنید
+- مثال: "باید یک پیتزا فروشی راه بیندازم" → [TASK: راه‌اندازی پیتزا فروشی]
+
+### سوالات روشن‌کننده:
+- اگر تسک مبهم است، **حداکثر 3 سوال مشخص** بپرسید
+- هدف، زمان‌بندی، منابع را روشن کنید
+- مثال: "چه بودجه‌ای داری؟ چند وقت زمان داری؟ تیم داری یا تنهایی؟"
+
+### پیگیری بعد از اتمام:
+- وقتی کاربر می‌گه تسکی تمام شد، **نتیجه رو بپرس**
+- **2-3 تسک بعدی پیشنهاد بده** که منطقی و مرتبط باشند
+- مثال: "عالی! پیتزا فروشی راه افتاد؟ حالا باید: 1) منوی دیجیتال بسازی 2) کمپین اینستاگرام راه بندازی 3) سیستم سفارش آنلاین اضافه کنی"
+
+## 🎨 نحوه پاسخ‌دهی:
+1. **جمله احساسی** (اجباری در اول هر پاسخ)
+2. **تحلیل مسئله** از زوایای مختلف
+3. **راه‌حل خلاقانه** و عملی
+4. **قدم‌های اجرایی** مشخص
+5. **تسک‌های بعدی** (اگر مرتبط باشد)
+
+## 💡 اصول شما:
+- "وقتی چیزی به اندازه کافی مهم است، حتی اگر شانس موفقیت کم باشد، انجامش بده"
+- "اول اصول اولیه را درک کن، نه با قیاس"
+- "بازخورد حلقه بازخورد را کوتاه کن"
+
+پاسخ‌ها را به زبان فارسی، ساختاریافته و با فرمت Markdown ارائه بده.`
+  }
+};
+
 // ============ AI CHAT PROXY ============
 app.post('/api/chat', async (req, res) => {
   try {
-    const { messages: chatMessages, expertId } = req.body;
+    const { messages: chatMessages, expertId, userQuestion, enableDeepSearch, modelId, chatId } = req.body;
+    
+    // Determine which model to use (default: mark-zuckerberg)
+    const selectedModelId = modelId || 'mark-zuckerberg';
+    const selectedModel = AI_MODELS[selectedModelId as keyof typeof AI_MODELS];
+    
+    if (!selectedModel) {
+      return res.status(400).json({ error: 'Invalid model ID' });
+    }
     
     console.log('📨 Received chat request');
     console.log('Messages count:', chatMessages?.length);
     console.log('Expert ID:', expertId);
+    console.log('Deep Search:', enableDeepSearch);
+    console.log('Model:', selectedModel.name);
+    console.log('Chat ID:', chatId);
     
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -157,17 +397,57 @@ app.post('/api/chat', async (req, res) => {
 
     // Load expert knowledge if expertId is provided
     let enrichedMessages = [...chatMessages];
+    
+    // Add model-specific system prompt
+    const systemMsgIndex = enrichedMessages.findIndex(m => m.role === 'system');
+    if (systemMsgIndex >= 0) {
+      enrichedMessages[systemMsgIndex] = {
+        ...enrichedMessages[systemMsgIndex],
+        content: selectedModel.systemPrompt + '\n\n' + enrichedMessages[systemMsgIndex].content
+      };
+    }
+    
+    // Task Management for Elon Musk model
+    let chatTasks: any[] = [];
+    if (selectedModelId === 'elon-musk' && chatId) {
+      console.log('📋 Loading tasks for Elon Musk model...');
+      chatTasks = await getTasksForChat(parseInt(chatId));
+      
+      // Detect status updates from user message
+      if (userQuestion && chatTasks.length > 0) {
+        const statusUpdates = detectStatusUpdates(userQuestion, chatTasks);
+        for (const update of statusUpdates) {
+          console.log(`🔄 Updating task ${update.taskId} to ${update.status}`);
+          await updateTaskStatus(update.taskId, update.status);
+        }
+        // Reload tasks after updates
+        chatTasks = await getTasksForChat(parseInt(chatId));
+      }
+      
+      // Build task context and add to prompt
+      const taskContext = buildTaskContext(chatTasks);
+      if (taskContext) {
+        console.log('✅ Task context added to prompt');
+        const sysIndex = enrichedMessages.findIndex(m => m.role === 'system');
+        if (sysIndex >= 0) {
+          enrichedMessages[sysIndex] = {
+            ...enrichedMessages[sysIndex],
+            content: enrichedMessages[sysIndex].content + taskContext
+          };
+        }
+      }
+    }
+    
     if (expertId) {
       console.log(`📚 Loading knowledge for expert: ${expertId}`);
       const knowledge = await loadExpertKnowledge(expertId);
       if (knowledge) {
         console.log(`✅ Knowledge loaded: ${knowledge.length} characters`);
-        // Add knowledge to system message
-        const systemMsgIndex = enrichedMessages.findIndex(m => m.role === 'system');
-        if (systemMsgIndex >= 0) {
-          enrichedMessages[systemMsgIndex] = {
-            ...enrichedMessages[systemMsgIndex],
-            content: enrichedMessages[systemMsgIndex].content + '\n\n' + knowledge
+        const sysIndex = enrichedMessages.findIndex(m => m.role === 'system');
+        if (sysIndex >= 0) {
+          enrichedMessages[sysIndex] = {
+            ...enrichedMessages[sysIndex],
+            content: enrichedMessages[sysIndex].content + '\n\n' + knowledge
           };
         }
       } else {
@@ -175,14 +455,45 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    console.log('🚀 Calling Arvan Cloud AI API (Qwen)...');
+    // Deep Search
+    if (enableDeepSearch && userQuestion) {
+      console.log('🔍 Deep Search enabled');
+      const searchNote = '\n\n🔍 **حالت جستجوی عمیق فعال است**\nبرای پاسخ دقیق‌تر، از دانش به‌روز و جامع‌تر استفاده می‌شود.\n';
+      const sysIndex = enrichedMessages.findIndex(m => m.role === 'system');
+      if (sysIndex >= 0) {
+        enrichedMessages[sysIndex] = {
+          ...enrichedMessages[sysIndex],
+          content: enrichedMessages[sysIndex].content + searchNote
+        };
+      }
+    }
+
+    // Add learned knowledge
+    if (userQuestion) {
+      console.log('🎓 Loading learned knowledge...');
+      const learnedKnowledgeText = await getRelevantKnowledge(userQuestion, 3);
+      if (learnedKnowledgeText) {
+        console.log('✅ Learned knowledge added to context');
+        const sysIndex = enrichedMessages.findIndex(m => m.role === 'system');
+        if (sysIndex >= 0) {
+          enrichedMessages[sysIndex] = {
+            ...enrichedMessages[sysIndex],
+            content: enrichedMessages[sysIndex].content + learnedKnowledgeText
+          };
+        }
+      }
+    }
+
+    console.log(`🚀 Calling ${selectedModel.name} API...`);
+    console.log(`📍 Model: ${selectedModel.model}`);
+    console.log(`📍 Client baseURL: ${selectedModel.client.baseURL}`);
     
-    const stream = await openai.chat.completions.create({
-      model: 'Qwen3-30B-A3B',
+    const stream = await selectedModel.client.chat.completions.create({
+      model: selectedModel.model,
       messages: enrichedMessages,
       stream: true,
       temperature: 0.7,
-      max_tokens: 3000,
+      max_tokens: 5000,
     });
 
     console.log('✅ Stream created successfully');
@@ -190,29 +501,28 @@ app.post('/api/chat', async (req, res) => {
     let chunkCount = 0;
     let buffer = '';
     let insideThinkTag = false;
+    let fullResponse = ''; // Collect full response for task extraction
     
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content;
       if (content) {
+        fullResponse += content; // Collect for task extraction
+        
+        // Filter out think tags for both models (both use Qwen)
         buffer += content;
         
-        // Process buffer to filter out <think> tags
         while (true) {
           if (!insideThinkTag) {
-            // Check if <think> tag starts
-            const thinkStart = buffer.indexOf('<think>');
+            const thinkStart = buffer.indexOf('<think');
             if (thinkStart !== -1) {
-              // Send everything before <think>
               if (thinkStart > 0) {
                 const beforeThink = buffer.substring(0, thinkStart);
                 chunkCount++;
                 res.write(`data: ${JSON.stringify({ content: beforeThink })}\n\n`);
               }
-              // Remove everything up to and including <think>
               buffer = buffer.substring(thinkStart + 7);
               insideThinkTag = true;
             } else {
-              // No <think> tag, send buffer if it's substantial
               if (buffer.length > 50 || buffer.includes('\n')) {
                 chunkCount++;
                 res.write(`data: ${JSON.stringify({ content: buffer })}\n\n`);
@@ -221,14 +531,11 @@ app.post('/api/chat', async (req, res) => {
               break;
             }
           } else {
-            // Inside <think> tag, look for </think>
-            const thinkEnd = buffer.indexOf('</think>');
+            const thinkEnd = buffer.indexOf('</think');
             if (thinkEnd !== -1) {
-              // Remove everything up to and including </think>
               buffer = buffer.substring(thinkEnd + 8);
               insideThinkTag = false;
             } else {
-              // Still inside think tag, clear buffer and wait for more
               buffer = '';
               break;
             }
@@ -237,10 +544,22 @@ app.post('/api/chat', async (req, res) => {
       }
     }
     
-    // Send any remaining buffer (if not inside think tag)
+    // Send any remaining buffer
     if (buffer.trim() && !insideThinkTag) {
       chunkCount++;
       res.write(`data: ${JSON.stringify({ content: buffer })}\n\n`);
+    }
+    
+    // Extract and save tasks for Elon Musk model
+    if (selectedModelId === 'elon-musk' && chatId && fullResponse) {
+      const extractedTasks = extractTasks(fullResponse);
+      if (extractedTasks.length > 0) {
+        console.log(`📋 Extracted ${extractedTasks.length} tasks`);
+        for (const taskDesc of extractedTasks) {
+          await createTask(parseInt(chatId), taskDesc);
+          console.log(`✅ Task created: ${taskDesc}`);
+        }
+      }
     }
     
     console.log(`✅ Stream completed. Sent ${chunkCount} chunks`);
@@ -257,6 +576,54 @@ app.post('/api/chat', async (req, res) => {
     res.status(500).json({ error: error?.message || 'خطا در ارتباط با AI' });
   }
 });
+
+// ============ GET AI MODELS ============
+app.get('/api/models', (req, res) => {
+  const models = Object.entries(AI_MODELS).map(([id, model]) => ({
+    id,
+    name: model.name,
+    description: model.description,
+    isPremium: model.isPremium
+  }));
+  res.json({ models });
+});
+
+// ============ TEST OSS GPT ============
+app.get('/api/test-oss', async (req, res) => {
+  try {
+    console.log('🧪 Testing OSS GPT connection...');
+    console.log('Endpoint:', OSS_GPT_ENDPOINT);
+    console.log('API Key:', OSS_GPT_API_KEY ? 'Present' : 'Missing');
+    
+    const response = await ossGptClient.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'سلام' }],
+      max_tokens: 50
+    });
+    
+    console.log('✅ OSS GPT test successful');
+    res.json({ 
+      success: true, 
+      response: response.choices[0]?.message?.content,
+      model: response.model
+    });
+  } catch (error: any) {
+    console.error('❌ OSS GPT test failed:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+      type: error?.type,
+      response: error?.response?.data
+    });
+    res.status(500).json({ 
+      success: false, 
+      error: error?.message,
+      details: error?.response?.data || error?.toString()
+    });
+  }
+});
+
 
 // ============ EMAIL VERIFICATION ROUTES ============
 
@@ -614,10 +981,143 @@ app.post('/api/messages', async (req, res) => {
       .set({ updatedAt: new Date() })
       .where(eq(chats.id, chatId));
 
+    // اگر پیام از مدل است، سعی کن یادگیری کنی
+    if (role === 'model') {
+      // دریافت آخرین پیام کاربر
+      const userMessages = await db.select()
+        .from(messages)
+        .where(eq(messages.chatId, chatId))
+        .orderBy(desc(messages.createdAt))
+        .limit(2);
+      
+      if (userMessages.length >= 2 && userMessages[1].role === 'user') {
+        // ذخیره به عنوان دانش جدید
+        await saveLearnedKnowledge({
+          question: userMessages[1].content,
+          answer: content,
+        }, newMessage.id);
+      }
+    }
+
     res.json(newMessage);
   } catch (error) {
     console.error('Add message error:', error);
     res.status(500).json({ error: 'خطا در ذخیره پیام' });
+  }
+});
+
+// ============ LEARNING & FEEDBACK ROUTES ============
+
+// ثبت بازخورد کاربر
+app.post('/api/feedback', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
+  try {
+    const { chatId, messageId, isHelpful, feedbackText } = req.body;
+
+    const [feedback] = await db.insert(conversationFeedback).values({
+      chatId,
+      messageId,
+      isHelpful,
+      feedbackText,
+    }).returning();
+
+    // اگر بازخورد مثبت بود، امتیاز کیفیت دانش مرتبط را افزایش بده
+    if (isHelpful && messageId) {
+      const relatedKnowledge = await db.select()
+        .from(learnedKnowledge)
+        .where(eq(learnedKnowledge.sourceMessageId, messageId))
+        .limit(1);
+      
+      if (relatedKnowledge.length > 0) {
+        await db.update(learnedKnowledge)
+          .set({ 
+            qualityScore: sql`${learnedKnowledge.qualityScore} + 2`,
+            updatedAt: new Date()
+          })
+          .where(eq(learnedKnowledge.id, relatedKnowledge[0].id));
+      }
+    }
+
+    res.json(feedback);
+  } catch (error) {
+    console.error('Feedback error:', error);
+    res.status(500).json({ error: 'خطا در ثبت بازخورد' });
+  }
+});
+
+// پردازش مکالمات برای یادگیری (admin)
+app.post('/api/admin/process-learning', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
+  try {
+    const learnedCount = await processNewConversationsForLearning();
+    res.json({ 
+      success: true, 
+      learnedCount,
+      message: `${learnedCount} دانش جدید یاد گرفته شد` 
+    });
+  } catch (error) {
+    console.error('Process learning error:', error);
+    res.status(500).json({ error: 'خطا در پردازش یادگیری' });
+  }
+});
+
+// دریافت آمار یادگیری (admin)
+app.get('/api/admin/learning-stats', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
+  try {
+    const stats = await getLearningStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Learning stats error:', error);
+    res.status(500).json({ error: 'خطا در دریافت آمار' });
+  }
+});
+
+// دریافت لیست دانش یادگیری شده (admin)
+app.get('/api/admin/learned-knowledge', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
+  try {
+    const { category, limit = 50 } = req.query;
+    
+    let query = db.select().from(learnedKnowledge);
+    
+    if (category && category !== 'all') {
+      query = query.where(eq(learnedKnowledge.category, category as string));
+    }
+    
+    const knowledge = await query
+      .orderBy(desc(learnedKnowledge.qualityScore), desc(learnedKnowledge.createdAt))
+      .limit(parseInt(limit as string));
+
+    res.json(knowledge);
+  } catch (error) {
+    console.error('Get learned knowledge error:', error);
+    res.status(500).json({ error: 'خطا در دریافت دانش' });
+  }
+});
+
+// حذف دانش یادگیری شده (admin)
+app.delete('/api/admin/learned-knowledge/:id', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
+  try {
+    const { id } = req.params;
+    
+    await db.delete(learnedKnowledge).where(eq(learnedKnowledge.id, parseInt(id)));
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete knowledge error:', error);
+    res.status(500).json({ error: 'خطا در حذف دانش' });
   }
 });
 
@@ -740,6 +1240,34 @@ app.delete('/api/admin/users/:id', async (req, res) => {
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ error: 'خطا در حذف کاربر' });
+  }
+});
+
+// Debug endpoint - بررسی کامل دیتابیس
+app.get('/api/admin/debug-data', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'دیتابیس موقتاً غیرفعال است' });
+  }
+  try {
+    const allUsers = await db.select().from(users);
+    const allChats = await db.select().from(chats);
+    const allMessages = await db.select().from(messages);
+    
+    res.json({
+      users: allUsers,
+      chats: allChats,
+      messages: allMessages,
+      summary: {
+        totalUsers: allUsers.length,
+        totalChats: allChats.length,
+        totalMessages: allMessages.length,
+        usersWithoutChats: allUsers.filter(u => !allChats.some(c => c.userId === u.id)).length,
+        chatsWithoutMessages: allChats.filter(c => !allMessages.some(m => m.chatId === c.id)).length,
+      }
+    });
+  } catch (error) {
+    console.error('Debug data error:', error);
+    res.status(500).json({ error: 'خطا در دریافت دیتا' });
   }
 });
 

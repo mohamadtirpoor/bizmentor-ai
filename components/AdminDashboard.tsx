@@ -17,8 +17,11 @@ import {
   Activity,
   X,
   User,
-  Bot
+  Bot,
+  Brain,
+  Bug
 } from 'lucide-react';
+import LearningPanel from './LearningPanel';
 
 interface User {
   id: number;
@@ -61,6 +64,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = true, onLogout }) => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'learning'>('dashboard');
   const [users, setUsers] = useState<User[]>([]);
   const [recentUsers, setRecentUsers] = useState<User[]>([]);
   const [recentChats, setRecentChats] = useState<Chat[]>([]);
@@ -74,6 +78,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = true, onLogo
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
+  const [debugData, setDebugData] = useState<any>(null);
+  const [showDebugModal, setShowDebugModal] = useState(false);
 
   useEffect(() => {
     loadAllData();
@@ -150,6 +156,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = true, onLogo
     }
   };
 
+  const loadDebugData = async () => {
+    try {
+      const response = await fetch('/api/admin/debug-data');
+      const data = await response.json();
+      setDebugData(data);
+      setShowDebugModal(true);
+      console.log('🔍 Debug Data:', data);
+    } catch (error) {
+      console.error('Error loading debug data:', error);
+    }
+  };
+
   const handleUserClick = (user: User) => {
     setSelectedUser(user);
     setShowUserModal(true);
@@ -189,14 +207,59 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = true, onLogo
     <div className={`h-screen flex flex-col ${darkMode ? 'bg-[#0a0a0f] text-white' : 'bg-gray-50 text-gray-800'}`}>
       {/* Header */}
       <header className={`h-16 flex items-center justify-between px-6 border-b ${darkMode ? 'bg-[#12121a] border-purple-500/20' : 'bg-white border-gray-200'}`}>
-        <div className="flex items-center gap-3">
-          <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-20 h-20 rounded-xl" />
-          <div>
-            <h1 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>پنل مدیریت بیزنس‌متر</h1>
-            <p className={`text-sm ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>داشبورد تحلیلی و مدیریت کاربران</p>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <img src="/logo/Untitled-2.png" alt="بیزنس‌متر" className="w-20 h-20 rounded-xl" />
+            <div>
+              <h1 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>پنل مدیریت بیزنس‌متر</h1>
+              <p className={`text-sm ${darkMode ? 'text-purple-400' : 'text-gray-500'}`}>داشبورد تحلیلی و مدیریت کاربران</p>
+            </div>
+          </div>
+          
+          {/* Tabs */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'dashboard'
+                  ? darkMode
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-purple-600 text-white'
+                  : darkMode
+                  ? 'text-gray-400 hover:bg-purple-500/10'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              داشبورد
+            </button>
+            <button
+              onClick={() => setActiveTab('learning')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'learning'
+                  ? darkMode
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-purple-600 text-white'
+                  : darkMode
+                  ? 'text-gray-400 hover:bg-purple-500/10'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Brain className="w-4 h-4" />
+              یادگیری AI
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={loadDebugData}
+            className={`p-2 rounded-lg transition-colors ${
+              darkMode ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' : 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
+            }`}
+            title="بررسی دیتابیس"
+          >
+            <Bug className="w-5 h-5" />
+          </button>
           <button
             onClick={handleRefresh}
             className={`p-2 rounded-lg transition-colors ${
@@ -217,6 +280,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = true, onLogo
         </div>
       </header>
 
+      {/* Content */}
+      {activeTab === 'learning' ? (
+        <LearningPanel darkMode={darkMode} />
+      ) : (
+        <>
       {/* Stats Cards */}
       <div className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -443,6 +511,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = true, onLogo
                   <p className="text-xs text-gray-500 mb-1">تاریخ عضویت</p>
                   <p className="text-lg font-bold text-white">{new Date(selectedUser.createdAt).toLocaleDateString('fa-IR')}</p>
                 </div>
+                {selectedUser.phone && (
+                  <div className="p-4 bg-white/5 rounded-xl col-span-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Phone className="w-4 h-4 text-gray-500" />
+                      <p className="text-xs text-gray-500">شماره تماس</p>
+                    </div>
+                    <p className="text-lg font-bold text-white" dir="ltr">{selectedUser.phone}</p>
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
                 <p className="text-sm text-purple-300">شناسه کاربر: {selectedUser.id}</p>
@@ -516,6 +593,65 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ darkMode = true, onLogo
             </div>
           </div>
         </div>
+      )}
+
+      {/* Debug Modal */}
+      {showDebugModal && debugData && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-4xl max-h-[90vh] rounded-2xl overflow-hidden ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
+            <div className={`p-6 border-b ${darkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Bug className="w-6 h-6 text-yellow-500" />
+                  <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>بررسی دیتابیس</h2>
+                </div>
+                <button onClick={() => setShowDebugModal(false)} className="text-gray-400 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-100px)]">
+              <div className="space-y-6">
+                {/* Summary */}
+                <div className={`p-4 rounded-xl ${darkMode ? 'bg-purple-900/30' : 'bg-purple-50'}`}>
+                  <h3 className={`text-lg font-bold mb-3 ${darkMode ? 'text-white' : 'text-gray-800'}`}>خلاصه</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-400">کاربران</p>
+                      <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{debugData.summary.totalUsers}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">چت‌ها</p>
+                      <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{debugData.summary.totalChats}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">پیام‌ها</p>
+                      <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{debugData.summary.totalMessages}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">کاربران بدون چت</p>
+                      <p className={`text-2xl font-bold text-yellow-500`}>{debugData.summary.usersWithoutChats}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">چت‌های خالی</p>
+                      <p className={`text-2xl font-bold text-red-500`}>{debugData.summary.chatsWithoutMessages}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Raw Data */}
+                <div>
+                  <h3 className={`text-lg font-bold mb-3 ${darkMode ? 'text-white' : 'text-gray-800'}`}>دیتای خام (JSON)</h3>
+                  <pre className={`p-4 rounded-xl text-xs overflow-x-auto ${darkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                    {JSON.stringify(debugData, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      </>
       )}
     </div>
   );

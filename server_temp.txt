@@ -1,0 +1,1124 @@
+import express from 'express';
+import cors from 'cors';
+import OpenAI from 'openai';
+import { db, users, chats, messages, learnedKnowledge, conversationFeedback } from './db';
+import { eq, desc, count, sql } from 'drizzle-orm';
+import { loadExpertKnowledge } from './knowledgeService';
+import { 
+  getRelevantKnowledge, 
+  saveLearnedKnowledge, 
+  extractLearningFromConversation,
+  processNewConversationsForLearning,
+  getLearningStats 
+} from './learningService';
+import { searchWebSimple, formatSearchResults } from './searchService';
+import { sendVerificationEmail, generateVerificationCode } from './emailService';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import postgres from 'postgres';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    database: db ? 'connected' : 'disconnected'
+  });
+});
+
+// Database test endpoint
+app.get('/api/db-test', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(503).json({ error: 'Database not connected' });
+    }
+    
+    // Test query
+    const result = await db.select().from(users).limit(1);
+    
+    res.json({ 
+      success: true, 
+      message: 'Database connected successfully',
+      usersCount: result.length
+    });
+  } catch (error: any) {
+    console.error('Database test error:', error);
+    res.status(500).json({ 
+      error: 'Database error', 
+      message: error.message,
+      hint: 'Tables might not exist. Run migrations first.'
+    });
+  }
+});
+
+// Database initialization endpoint (admin only) - ADDS NEW TABLES ONLY
+app.post('/api/db-add-tables', async (req, res) => {
+  try {
+    const { adminKey } = req.body;
+    
+    // Simple admin key check
+    if (adminKey !== 'mohamad.tir1383') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    
+    const connectionString = process.env.DATABASE_URL || 'postgresql://root:jpMjfUFd8b2DlnaMkcSX6ctd@businessmeter:5432/postgres';
+    const sqlClient = postgres(connectionString);
+    
+    // Check if tables exist and create only if they don't
+    try {
+      // Check if learned_knowledge exists
+      const learnedKnowledgeExists = await sqlClient`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'learned_knowledge'
+        )
+      `;
+      
+      if (!learnedKnowledgeExists[0].exists) {
+        await sqlClient`
+          CREATE TABLE learned_knowledge (
+            id SERIAL PRIMARY KEY,
+            question TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            category TEXT,
+            quality_score INTEGER DEFAULT 0,
+            usage_count INTEGER DEFAULT 0,
+            source_message_id INTEGER,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+          )
+        `;
+        console.log('ƒo. learned_knowledge table created');
+      } else {
+        console.log('ƒ,1‹,? learned_knowledge table already exists');
+      }
+      
+      // Check if conversation_feedback exists
+      const feedbackExists = await sqlClient`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'conversation_feedback'
+        )
+      `;
+      
+      if (!feedbackExists[0].exists) {
+        await sqlClient`
+          CREATE TABLE conversation_feedback (
+            id SERIAL PRIMARY KEY,
+            chat_id INTEGER REFERENCES chats(id),
+            message_id INTEGER REFERENCES messages(id),
+            is_helpful BOOLEAN,
+            feedback_text TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+          )
+        `;
+        console.log('ƒo. conversation_feedback table created');
+      } else {
+        console.log('ƒ,1‹,? conversation_feedback table already exists');
+      }
+      
+    } catch (error: any) {
+      console.error('Error creating tables:', error);
+      await sqlClient.end();
+      return res.status(500).json({ 
+        error: 'Failed to create tables', 
+        message: error.message 
+      });
+    }
+    
+    await sqlClient.end();
+    
+    res.json({ 
+      success: true, 
+      message: 'New tables added successfully (existing data preserved)'
+    });
+  } catch (error: any) {
+    console.error('Database add tables error:', error);
+    res.status(500).json({ 
+      error: 'Database operation failed', 
+      message: error.message
+    });
+  }
+});
+app.post('/api/db-init', async (req, res) => {
+  try {
+    const { adminKey } = req.body;
+    
+    // Simple admin key check
+    if (adminKey !== 'mohamad.tir1383') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    
+    const connectionString = process.env.DATABASE_URL || 'postgresql://root:jpMjfUFd8b2DlnaMkcSX6ctd@businessmeter:5432/postgres';
+    const sqlClient = postgres(connectionString);
+    
+    // Drop and recreate tables
+    await sqlClient`DROP TABLE IF EXISTS messages CASCADE`;
+    await sqlClient`DROP TABLE IF EXISTS chats CASCADE`;
+    await sqlClient`DROP TABLE IF EXISTS users CASCADE`;
+    
+    await sqlClient`
+      CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        phone TEXT,
+        password TEXT DEFAULT '',
+        has_premium BOOLEAN DEFAULT true,
+        free_messages_used INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    
+    await sqlClient`
+      CREATE TABLE chats (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        title TEXT NOT NULL,
+        mode TEXT DEFAULT 'consultant',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    
+    await sqlClient`
+      CREATE TABLE messages (
+        id SERIAL PRIMARY KEY,
+        chat_id INTEGER REFERENCES chats(id),
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    
+    await sqlClient`
+      CREATE TABLE learned_knowledge (
+        id SERIAL PRIMARY KEY,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        category TEXT,
+        quality_score INTEGER DEFAULT 0,
+        usage_count INTEGER DEFAULT 0,
+        source_message_id INTEGER,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    
+    await sqlClient`
+      CREATE TABLE conversation_feedback (
+        id SERIAL PRIMARY KEY,
+        chat_id INTEGER REFERENCES chats(id),
+        message_id INTEGER REFERENCES messages(id),
+        is_helpful BOOLEAN,
+        feedback_text TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    
+    await sqlClient.end();
+    
+    res.json({ 
+      success: true, 
+      message: 'Database initialized successfully'
+    });
+  } catch (error: any) {
+    console.error('Database init error:', error);
+    res.status(500).json({ 
+      error: 'Database initialization failed', 
+      message: error.message
+    });
+  }
+});
+
+// Serve static files in production
+const distPath = join(__dirname, '..', 'dist');
+app.use(express.static(distPath));
+
+// Storage U.U^U,O¦ O"OñOUO UcO_UØOUO O¦OUOUOO_ (O_Oñ production O"OUOO_ OOý Redis OO3O¦U?OO_UØ UcU+UO)
+const verificationCodes = new Map<string, { code: string; expiresAt: number }>();
+
+// ============ AI API CONFIG ============
+
+// Model 1: Mark Zuckerberg (Free) - Arvan Cloud Qwen
+const ARVAN_ENDPOINT = 'https://arvancloudai.ir/gateway/models/Qwen3-30B-A3B/MzngmyQ1gA1LhnhOwlLFW4xAv3F4mH_B-aDTOTJCiCyggiFk4qUOtP-TJ02Vao2geVMmoSTiu2EMHg8HqwJQNzMHr7abTuS3Xy6do9APpuIs-yXdqd_S-s597MXlaLDTiURmaY47xj--xPHdHBtLO3GLcTllV_IIvxS62f7mHyCpQzNQpL66GwbZrwRNyHepubqq9hOIRwNIfpKcUV6i-qZNdxyUROnUkZs7HFbQWuHg90CUsQQP5RZogWFCgE97/v1';
+const ARVAN_API_KEY = 'b6a3781c-f36c-5631-939c-b3c1c0230d4b';
+
+// Model 2: Elon Musk (Premium) - OSS GPT
+const OSS_GPT_ENDPOINT = 'https://oss-gpt.ir/api/v1';
+const OSS_GPT_API_KEY = '66bccbb2-0561-5727-9a5d-57347ee3ec9b';
+
+// OpenAI client for Model 1 (Mark Zuckerberg - Free)
+const openai = new OpenAI({
+  baseURL: ARVAN_ENDPOINT,
+  apiKey: ARVAN_API_KEY,
+  timeout: 60000,
+  maxRetries: 2,
+  defaultHeaders: {
+    'Authorization': `apikey ${ARVAN_API_KEY}`
+  }
+});
+
+// OpenAI client for Model 2 (Elon Musk - Premium)
+const ossGptClient = new OpenAI({
+  baseURL: OSS_GPT_ENDPOINT,
+  apiKey: OSS_GPT_API_KEY,
+  timeout: 60000,
+  maxRetries: 2,
+});
+
+// Model configurations
+const AI_MODELS = {
+  'mark-zuckerberg': {
+    name: 'U.OOñUc OýOUcOñO"OñU_',
+    description: 'U.O_U, OñOUOU_OU+ - U.U+OO3O" O3U^OU,OO¦ O1U.U^U.UO',
+    isPremium: false,
+    client: openai,
+    model: 'Qwen3-30B-A3B',
+    systemPrompt: `O'U.O UOUc U.O'OU^Oñ UcO3O"ƒ?OU^UcOOñ UØU^O'U.U+O_ U^ OrU,OU, UØO3O¦UOO_. U_OO3Orƒ?OUØOUO OrU^O_ OñO O"UØ OýO"OU+ U?OOñO3UO U^ O"O U,O-U+UO O_U^O3O¦OU+UØ U^ O-OñU?UØƒ?OOUO OOñOOÝUØ O_UØUOO_.`
+  },
+  'elon-musk': {
+    name: 'OUOU,OU+ U.OO3Uc',
+    description: 'U.O_U, O-OñU?UØƒ?OOUO - O¦O3Ucƒ?OU.O-U^Oñ U^ O¦OrOæOæUO',
+    isPremium: true,
+    client: ossGptClient,
+    model: 'gpt-4o',
+    systemPrompt: `O'U.O UOUc O_O3O¦UOOOñ UcO3O"ƒ?OU^UcOOñ O-OñU?UØƒ?OOUO U^ O¦O3Ucƒ?OU.O-U^Oñ UØO3O¦UOO_ O"UØ U+OU. "OUOU,OU+ U.OO3Uc".
+
+## O'OrOæUOO¦ O'U.O:
+- UcOOñO›U?OñUOU+OO U+U^O›U^Oñ U^ OO3O¦OñOO¦U~UOO3O¦
+- O"UØ O_U+O"OU, OñOUØƒ?OO-U,ƒ?OUØOUO OrU,OU,OU+UØ U^ OU+U,U,OO"UO
+- U.O3O¦U,UOU.OO OæOñUOO- U^ U+O¦UOOªUØƒ?OU_OñO
+- O1OO'U, O¦UcU+U^U,U^U~UO U^ O›UOU+O_UØƒ?OU+U_OñUO
+
+## U+O-U^UØ U_OO3Orƒ?OO_UØUO:
+1. **O¦O-U,UOU, U.O3OÝU,UØ**: OO"O¦O_O U.O3OÝU,UØ OñO OOý OýU^OUOOUO U.OrO¦U,U? O¦O-U,UOU, UcU+
+2. **OñOUØƒ?OO-U, OrU,OU,OU+UØ**: OñOUØƒ?OO-U,UO OOñOOÝUØ O"O_UØ UcUØ O_UOU_OñOU+ O"UØ O›U+ U?UcOñ U+UcOñO_UØƒ?OOU+O_
+3. **OU,O_OU. O1U.U,UO**: U,O_U.ƒ?OUØOUO U.O'OrOæ U^ OOªOñOUOUO O"O_UØ
+4. **OñUOO3Ucƒ?OUØO**: OñUOO3Ucƒ?OUØOUO OO-O¦U.OU,UO U^ U+O-U^UØ U.O_UOOñUOO¦ O›U+ƒ?OUØO OñO O¦U^OUOO- O"O_UØ
+5. **O›UOU+O_UØƒ?OU+U_OñUO**: U+OU,O'ƒ?OUØOUO O›UOU+O_UØ U^ U?OñOæO¦ƒ?OUØOUO U_U+UØOU+ OñO O'U+OO3OUOUO UcU+
+
+## OOæU^U, O'U.O:
+- "U^U,O¦UO U+UOOýUO O"UØ OU+O_OOýUØ UcOU?UO U.UØU. OO3O¦OO O-O¦UO OU_Oñ O'OU+O3 U.U^U?U,UOO¦ UcU. O"OO'O_OO OU+OªOU.O' O"O_UØ"
+- "OU^U, OOæU^U, OU^U,UOUØ OñO O_OñUc UcU+OO U+UØ O"O U,UOOO3"
+- "O"OOýOrU^OñO_ O-U,U,UØ O"OOýOrU^OñO_ OñO UcU^O¦OUØ UcU+"
+
+U_OO3Orƒ?OUØO OñO O"UØ OýO"OU+ U?OOñO3UOOO O3OOrO¦OOñUOOU?O¦UØ U^ O"O U?OñU.O¦ Markdown OOñOOÝUØ O"O_UØ.`
+  }
+};
+
+// ============ AI CHAT PROXY ============
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { messages: chatMessages, expertId, userQuestion, enableDeepSearch } = req.body;
+    
+    console.log('dY"" Received chat request');
+    console.log('Messages count:', chatMessages?.length);
+    console.log('Expert ID:', expertId);
+    console.log('Deep Search:', enableDeepSearch);
+    
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Load expert knowledge if expertId is provided
+    let enrichedMessages = [...chatMessages];
+    if (expertId) {
+      console.log(`dY"s Loading knowledge for expert: ${expertId}`);
+      const knowledge = await loadExpertKnowledge(expertId);
+      if (knowledge) {
+        console.log(`ƒo. Knowledge loaded: ${knowledge.length} characters`);
+        // Add knowledge to system message
+        const systemMsgIndex = enrichedMessages.findIndex(m => m.role === 'system');
+        if (systemMsgIndex >= 0) {
+          enrichedMessages[systemMsgIndex] = {
+            ...enrichedMessages[systemMsgIndex],
+            content: enrichedMessages[systemMsgIndex].content + '\n\n' + knowledge
+          };
+        }
+      } else {
+        console.log('ƒsÿ‹,? No knowledge found for this expert');
+      }
+    }
+
+    // Deep Search - OªO3O¦OªU^UO U^O"
+    if (enableDeepSearch && userQuestion) {
+      console.log('dY"? Deep Search enabled');
+      // U?O1U,OU< U?U,Oú UOUc U_UOOU. OOúU,OO1ƒ?OOñO3OU+UO OOOU?UØ U.UOƒ?OUcU+UOU.
+      // O_Oñ O›UOU+O_UØ U.UOƒ?OO¦U^OU+ OOý API UØOUO OªO3O¦OªU^ OO3O¦U?OO_UØ UcOñO_
+      const searchNote = '\n\ndY"? **O-OU,O¦ OªO3O¦OªU^UO O1U.UOU, U?O1OU, OO3O¦**\nO"OñOUO U_OO3Or O_U,UOU,ƒ?OO¦OñOO OOý O_OU+O' O"UØƒ?OOñU^Oý U^ OªOU.O1ƒ?OO¦Oñ OO3O¦U?OO_UØ U.UOƒ?OO'U^O_.\n';
+      const systemMsgIndex = enrichedMessages.findIndex(m => m.role === 'system');
+      if (systemMsgIndex >= 0) {
+        enrichedMessages[systemMsgIndex] = {
+          ...enrichedMessages[systemMsgIndex],
+          content: enrichedMessages[systemMsgIndex].content + searchNote
+        };
+      }
+    }
+
+    // OOOU?UØ UcOñO_U+ O_OU+O' UOOO_U_UOOñUO O'O_UØ
+    if (userQuestion) {
+      console.log('dYZ" Loading learned knowledge...');
+      const learnedKnowledgeText = await getRelevantKnowledge(userQuestion, 3);
+      if (learnedKnowledgeText) {
+        console.log('ƒo. Learned knowledge added to context');
+        const systemMsgIndex = enrichedMessages.findIndex(m => m.role === 'system');
+        if (systemMsgIndex >= 0) {
+          enrichedMessages[systemMsgIndex] = {
+            ...enrichedMessages[systemMsgIndex],
+            content: enrichedMessages[systemMsgIndex].content + learnedKnowledgeText
+          };
+        }
+      }
+    }
+
+    console.log('dYs? Calling Arvan Cloud AI API (Qwen)...');
+    
+    const stream = await openai.chat.completions.create({
+      model: 'Qwen3-30B-A3B',
+      messages: enrichedMessages,
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 5000,
+    });
+
+    console.log('ƒo. Stream created successfully');
+    
+    let chunkCount = 0;
+    let buffer = '';
+    let insideThinkTag = false;
+    
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        buffer += content;
+        
+        // Process buffer to filter out <think> tags
+        while (true) {
+          if (!insideThinkTag) {
+            // Check if <think> tag starts
+            const thinkStart = buffer.indexOf('<think>');
+            if (thinkStart !== -1) {
+              // Send everything before <think>
+              if (thinkStart > 0) {
+                const beforeThink = buffer.substring(0, thinkStart);
+                chunkCount++;
+                res.write(`data: ${JSON.stringify({ content: beforeThink })}\n\n`);
+              }
+              // Remove everything up to and including <think>
+              buffer = buffer.substring(thinkStart + 7);
+              insideThinkTag = true;
+            } else {
+              // No <think> tag, send buffer if it's substantial
+              if (buffer.length > 50 || buffer.includes('\n')) {
+                chunkCount++;
+                res.write(`data: ${JSON.stringify({ content: buffer })}\n\n`);
+                buffer = '';
+              }
+              break;
+            }
+          } else {
+            // Inside <think> tag, look for </think>
+            const thinkEnd = buffer.indexOf('</think>');
+            if (thinkEnd !== -1) {
+              // Remove everything up to and including </think>
+              buffer = buffer.substring(thinkEnd + 8);
+              insideThinkTag = false;
+            } else {
+              // Still inside think tag, clear buffer and wait for more
+              buffer = '';
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    // Send any remaining buffer (if not inside think tag)
+    if (buffer.trim() && !insideThinkTag) {
+      chunkCount++;
+      res.write(`data: ${JSON.stringify({ content: buffer })}\n\n`);
+    }
+    
+    console.log(`ƒo. Stream completed. Sent ${chunkCount} chunks`);
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (error: any) {
+    console.error('ƒ?O AI Chat error:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+      type: error?.type
+    });
+    res.status(500).json({ error: error?.message || 'OrOúO O_Oñ OOñO¦O"OOú O"O AI' });
+  }
+});
+
+// ============ EMAIL VERIFICATION ROUTES ============
+
+// OOñO3OU, UcO_ O¦OUOUOO_
+app.post('/api/auth/send-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'OUOU.UOU, U.O1O¦O"Oñ U^OOñO_ UcU+UOO_' });
+    }
+
+    // O¦U^U,UOO_ UcO_ 6 OñU,U.UO
+    const code = generateVerificationCode();
+    
+    // OøOrUOOñUØ UcO_ O"O OýU.OU+ OU+U,OO (10 O_U,UOU,UØ)
+    verificationCodes.set(email, {
+      code,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+    });
+
+    // OOñO3OU, OUOU.UOU,
+    const sent = await sendVerificationEmail(email, code);
+
+    if (sent) {
+      res.json({ success: true, message: 'UcO_ O¦OUOUOO_ O"UØ OUOU.UOU, O'U.O OOñO3OU, O'O_' });
+    } else {
+      res.status(500).json({ error: 'OrOúO O_Oñ OOñO3OU, OUOU.UOU,. U,OúU?OU< O_U^O"OOñUØ O¦U,OO' UcU+UOO_.' });
+    }
+  } catch (error) {
+    console.error('Send code error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ OOñO3OU, UcO_ O¦OUOUOO_' });
+  }
+});
+
+// O¦OUOUOO_ UcO_ U^ U^OñU^O_/O®O"O¦ƒ?OU+OU.
+app.post('/api/auth/verify-code', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { email, code, name } = req.body;
+
+    // O"OñOñO3UO UcO_
+    const stored = verificationCodes.get(email);
+    
+    if (!stored) {
+      return res.status(400).json({ error: 'UcO_ O¦OUOUOO_ UOOU?O¦ U+O'O_. U,OúU?OU< O_U^O"OOñUØ O_OñOrU^OO3O¦ O_UØUOO_.' });
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      verificationCodes.delete(email);
+      return res.status(400).json({ error: 'UcO_ O¦OUOUOO_ U.U+U,OUO O'O_UØ OO3O¦. U,OúU?OU< O_U^O"OOñUØ O_OñOrU^OO3O¦ O_UØUOO_.' });
+    }
+
+    if (stored.code !== code) {
+      return res.status(400).json({ error: 'UcO_ O¦OUOUOO_ OO'O¦O"OUØ OO3O¦' });
+    }
+
+    // UcO_ OæO-UOO- OO3O¦OO O-OøU? UcO_
+    verificationCodes.delete(email);
+
+    // O"OñOñO3UO U^OªU^O_ UcOOñO"Oñ
+    const [existingUser] = await db.select().from(users).where(eq(users.email, email));
+
+    if (existingUser) {
+      // UcOOñO"Oñ U^OªU^O_ O_OOñO_OO U^OñU^O_
+      res.json({
+        success: true,
+        user: {
+          id: existingUser.id,
+          name: existingUser.name,
+          email: existingUser.email,
+          hasPremium: existingUser.hasPremium,
+          freeMessagesUsed: existingUser.freeMessagesUsed,
+        },
+      });
+    } else {
+      // UcOOñO"Oñ OªO_UOO_OO O®O"O¦ƒ?OU+OU.
+      const [newUser] = await db.insert(users).values({
+        name: name || email.split('@')[0],
+        email,
+        password: '', // O"O UcO_ O¦OUOUOO_OO OñU.Oý O1O"U^Oñ U+O_OOñUOU.
+      }).returning();
+
+      res.json({
+        success: true,
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          hasPremium: newUser.hasPremium,
+          freeMessagesUsed: newUser.freeMessagesUsed,
+        },
+      });
+    }
+  } catch (error) {
+    console.error('Verify code error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O¦OUOUOO_ UcO_' });
+  }
+});
+
+// ============ USER ROUTES ============
+
+// Register user
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(503).json({ error: 'O_UOO¦OO"UOO3 O_Oñ O_O3O¦OñO3 U+UOO3O¦' });
+    }
+    
+    const { name, email, password } = req.body;
+    
+    // Check if user exists
+    const existingUser = await db.select().from(users).where(eq(users.email, email));
+    if (existingUser.length > 0) {
+      return res.status(400).json({ error: 'UcOOñO"Oñ O"O OUOU+ OUOU.UOU, U,O"U,OU< O®O"O¦ƒ?OU+OU. UcOñO_UØ OO3O¦' });
+    }
+
+    const [newUser] = await db.insert(users).values({
+      name,
+      email,
+      password, // In production, hash this!
+    }).returning();
+
+    res.json({ 
+      id: newUser.id,
+      name: newUser.name, 
+      email: newUser.email,
+      hasPremium: newUser.hasPremium,
+      freeMessagesUsed: newUser.freeMessagesUsed
+    });
+  } catch (error) {
+    console.error('Register error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O®O"O¦ƒ?OU+OU.' });
+  }
+});
+
+// Simple register (no password, just name, email, phone)
+app.post('/api/auth/simple-register', async (req, res) => {
+  try {
+    if (!db) {
+      // If no database, use localStorage only
+      const { name, email, phone } = req.body;
+      return res.json({ 
+        user: {
+          id: Date.now(),
+          name, 
+          email,
+          phone,
+          hasPremium: true,
+          freeMessagesUsed: 0
+        }
+      });
+    }
+    
+    const { name, email, phone } = req.body;
+    
+    // Check if user exists
+    const [existingUser] = await db.select().from(users).where(eq(users.email, email));
+    
+    if (existingUser) {
+      // User exists, just return their info
+      return res.json({ 
+        user: {
+          id: existingUser.id,
+          name: existingUser.name, 
+          email: existingUser.email,
+          phone: existingUser.phone,
+          hasPremium: existingUser.hasPremium,
+          freeMessagesUsed: existingUser.freeMessagesUsed
+        }
+      });
+    }
+
+    // Create new user
+    const [newUser] = await db.insert(users).values({
+      name,
+      email,
+      phone,
+      password: '', // No password needed
+      hasPremium: true, // Everyone gets premium
+    }).returning();
+
+    res.json({ 
+      user: {
+        id: newUser.id,
+        name: newUser.name, 
+        email: newUser.email,
+        phone: newUser.phone,
+        hasPremium: newUser.hasPremium,
+        freeMessagesUsed: newUser.freeMessagesUsed
+      }
+    });
+  } catch (error) {
+    console.error('Simple register error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O®O"O¦ OOúU,OO1OO¦' });
+  }
+});
+
+// Login user
+app.post('/api/auth/login', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { email, password } = req.body;
+    
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: 'OUOU.UOU, UOO OñU.Oý O1O"U^Oñ OO'O¦O"OUØ OO3O¦' });
+    }
+
+    res.json({ 
+      id: user.id,
+      name: user.name, 
+      email: user.email,
+      hasPremium: user.hasPremium,
+      freeMessagesUsed: user.freeMessagesUsed
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ U^OñU^O_' });
+  }
+});
+
+// Update user premium status
+app.patch('/api/users/:id/premium', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { id } = req.params;
+    const { hasPremium } = req.body;
+
+    const [updated] = await db.update(users)
+      .set({ hasPremium, updatedAt: new Date() })
+      .where(eq(users.id, parseInt(id)))
+      .returning();
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Update premium error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O"OñU^OýOñO3OU+UO' });
+  }
+});
+
+// Increment free messages used
+app.patch('/api/users/:id/increment-messages', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { id } = req.params;
+
+    const [updated] = await db.update(users)
+      .set({ 
+        freeMessagesUsed: sql`${users.freeMessagesUsed} + 1`,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, parseInt(id)))
+      .returning();
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Increment messages error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O"OñU^OýOñO3OU+UO' });
+  }
+});
+
+// ============ CHAT ROUTES ============
+
+// Create new chat
+app.post('/api/chats', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { userId, title, mode } = req.body;
+
+    const [newChat] = await db.insert(chats).values({
+      userId,
+      title,
+      mode,
+    }).returning();
+
+    res.json(newChat);
+  } catch (error) {
+    console.error('Create chat error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ OUOOªOO_ U+O¦' });
+  }
+});
+
+// Get user's chats
+app.get('/api/chats/user/:userId', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { userId } = req.params;
+
+    const userChats = await db.select()
+      .from(chats)
+      .where(eq(chats.userId, parseInt(userId)))
+      .orderBy(desc(chats.updatedAt));
+
+    res.json(userChats);
+  } catch (error) {
+    console.error('Get chats error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O_OñUOOU?O¦ U+O¦ƒ?OUØO' });
+  }
+});
+
+// Get chat with messages
+app.get('/api/chats/:chatId', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { chatId } = req.params;
+
+    const [chat] = await db.select().from(chats).where(eq(chats.id, parseInt(chatId)));
+    const chatMessages = await db.select()
+      .from(messages)
+      .where(eq(messages.chatId, parseInt(chatId)))
+      .orderBy(messages.createdAt);
+
+    res.json({ ...chat, messages: chatMessages });
+  } catch (error) {
+    console.error('Get chat error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O_OñUOOU?O¦ U+O¦' });
+  }
+});
+
+// ============ MESSAGE ROUTES ============
+
+// Add message to chat
+app.post('/api/messages', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { chatId, role, content, metadata } = req.body;
+
+    const [newMessage] = await db.insert(messages).values({
+      chatId,
+      role,
+      content,
+      metadata,
+    }).returning();
+
+    // Update chat's updatedAt
+    await db.update(chats)
+      .set({ updatedAt: new Date() })
+      .where(eq(chats.id, chatId));
+
+    // OU_Oñ U_UOOU. OOý U.O_U, OO3O¦OO O3O1UO UcU+ UOOO_U_UOOñUO UcU+UO
+    if (role === 'model') {
+      // O_OñUOOU?O¦ O›OrOñUOU+ U_UOOU. UcOOñO"Oñ
+      const userMessages = await db.select()
+        .from(messages)
+        .where(eq(messages.chatId, chatId))
+        .orderBy(desc(messages.createdAt))
+        .limit(2);
+      
+      if (userMessages.length >= 2 && userMessages[1].role === 'user') {
+        // OøOrUOOñUØ O"UØ O1U+U^OU+ O_OU+O' OªO_UOO_
+        await saveLearnedKnowledge({
+          question: userMessages[1].content,
+          answer: content,
+        }, newMessage.id);
+      }
+    }
+
+    res.json(newMessage);
+  } catch (error) {
+    console.error('Add message error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ OøOrUOOñUØ U_UOOU.' });
+  }
+});
+
+// ============ LEARNING & FEEDBACK ROUTES ============
+
+// O®O"O¦ O"OOýOrU^OñO_ UcOOñO"Oñ
+app.post('/api/feedback', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { chatId, messageId, isHelpful, feedbackText } = req.body;
+
+    const [feedback] = await db.insert(conversationFeedback).values({
+      chatId,
+      messageId,
+      isHelpful,
+      feedbackText,
+    }).returning();
+
+    // OU_Oñ O"OOýOrU^OñO_ U.O®O"O¦ O"U^O_OO OU.O¦UOOOý UcUOU?UOO¦ O_OU+O' U.OñO¦O"Oú OñO OU?OýOUOO' O"O_UØ
+    if (isHelpful && messageId) {
+      const relatedKnowledge = await db.select()
+        .from(learnedKnowledge)
+        .where(eq(learnedKnowledge.sourceMessageId, messageId))
+        .limit(1);
+      
+      if (relatedKnowledge.length > 0) {
+        await db.update(learnedKnowledge)
+          .set({ 
+            qualityScore: sql`${learnedKnowledge.qualityScore} + 2`,
+            updatedAt: new Date()
+          })
+          .where(eq(learnedKnowledge.id, relatedKnowledge[0].id));
+      }
+    }
+
+    res.json(feedback);
+  } catch (error) {
+    console.error('Feedback error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O®O"O¦ O"OOýOrU^OñO_' });
+  }
+});
+
+// U_OñO_OOýO' U.UcOU,U.OO¦ O"OñOUO UOOO_U_UOOñUO (admin)
+app.post('/api/admin/process-learning', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const learnedCount = await processNewConversationsForLearning();
+    res.json({ 
+      success: true, 
+      learnedCount,
+      message: `${learnedCount} O_OU+O' OªO_UOO_ UOOO_ U_OñU?O¦UØ O'O_` 
+    });
+  } catch (error) {
+    console.error('Process learning error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ U_OñO_OOýO' UOOO_U_UOOñUO' });
+  }
+});
+
+// O_OñUOOU?O¦ O›U.OOñ UOOO_U_UOOñUO (admin)
+app.get('/api/admin/learning-stats', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const stats = await getLearningStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Learning stats error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O_OñUOOU?O¦ O›U.OOñ' });
+  }
+});
+
+// O_OñUOOU?O¦ U,UOO3O¦ O_OU+O' UOOO_U_UOOñUO O'O_UØ (admin)
+app.get('/api/admin/learned-knowledge', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { category, limit = 50 } = req.query;
+    
+    let query = db.select().from(learnedKnowledge);
+    
+    if (category && category !== 'all') {
+      query = query.where(eq(learnedKnowledge.category, category as string));
+    }
+    
+    const knowledge = await query
+      .orderBy(desc(learnedKnowledge.qualityScore), desc(learnedKnowledge.createdAt))
+      .limit(parseInt(limit as string));
+
+    res.json(knowledge);
+  } catch (error) {
+    console.error('Get learned knowledge error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O_OñUOOU?O¦ O_OU+O'' });
+  }
+});
+
+// O-OøU? O_OU+O' UOOO_U_UOOñUO O'O_UØ (admin)
+app.delete('/api/admin/learned-knowledge/:id', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { id } = req.params;
+    
+    await db.delete(learnedKnowledge).where(eq(learnedKnowledge.id, parseInt(id)));
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete knowledge error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O-OøU? O_OU+O'' });
+  }
+});
+
+// ============ ADMIN ROUTES ============
+
+// Get all users (admin)
+app.get('/api/admin/users', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const allUsers = await db.select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      phone: users.phone,
+      hasPremium: users.hasPremium,
+      freeMessagesUsed: users.freeMessagesUsed,
+      createdAt: users.createdAt,
+    }).from(users).orderBy(desc(users.createdAt));
+
+    res.json(allUsers);
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O_OñUOOU?O¦ UcOOñO"OñOU+' });
+  }
+});
+
+// Get all chats with user info (admin)
+app.get('/api/admin/chats', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const allChats = await db.select({
+      id: chats.id,
+      title: chats.title,
+      mode: chats.mode,
+      createdAt: chats.createdAt,
+      updatedAt: chats.updatedAt,
+      userId: chats.userId,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(chats)
+    .leftJoin(users, eq(chats.userId, users.id))
+    .orderBy(desc(chats.updatedAt));
+
+    res.json(allChats);
+  } catch (error) {
+    console.error('Get all chats error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O_OñUOOU?O¦ U+O¦ƒ?OUØO' });
+  }
+});
+
+// Get chat messages (admin)
+app.get('/api/admin/chats/:chatId/messages', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { chatId } = req.params;
+
+    const chatMessages = await db.select()
+      .from(messages)
+      .where(eq(messages.chatId, parseInt(chatId)))
+      .orderBy(messages.createdAt);
+
+    res.json(chatMessages);
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O_OñUOOU?O¦ U_UOOU.ƒ?OUØO' });
+  }
+});
+
+// Get dashboard stats (admin)
+app.get('/api/admin/stats', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const [userCount] = await db.select({ count: count() }).from(users);
+    const [chatCount] = await db.select({ count: count() }).from(chats);
+    const [messageCount] = await db.select({ count: count() }).from(messages);
+    const [premiumCount] = await db.select({ count: count() }).from(users).where(eq(users.hasPremium, true));
+
+    res.json({
+      totalUsers: userCount.count,
+      totalChats: chatCount.count,
+      totalMessages: messageCount.count,
+      premiumUsers: premiumCount.count,
+    });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O_OñUOOU?O¦ O›U.OOñ' });
+  }
+});
+
+// Delete user (admin)
+app.delete('/api/admin/users/:id', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const { id } = req.params;
+    
+    // Delete user's messages first
+    const userChats = await db.select({ id: chats.id }).from(chats).where(eq(chats.userId, parseInt(id)));
+    for (const chat of userChats) {
+      await db.delete(messages).where(eq(messages.chatId, chat.id));
+    }
+    
+    // Delete user's chats
+    await db.delete(chats).where(eq(chats.userId, parseInt(id)));
+    
+    // Delete user
+    await db.delete(users).where(eq(users.id, parseInt(id)));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O-OøU? UcOOñO"Oñ' });
+  }
+});
+
+// Debug endpoint - O"OñOñO3UO UcOU.U, O_UOO¦OO"UOO3
+app.get('/api/admin/debug-data', async (req, res) => {
+  if (!db) {
+    return res.status(503).json({ error: 'O_UOO¦OO"UOO3 U.U^U,O¦OU< O§UOOñU?O1OU, OO3O¦' });
+  }
+  try {
+    const allUsers = await db.select().from(users);
+    const allChats = await db.select().from(chats);
+    const allMessages = await db.select().from(messages);
+    
+    res.json({
+      users: allUsers,
+      chats: allChats,
+      messages: allMessages,
+      summary: {
+        totalUsers: allUsers.length,
+        totalChats: allChats.length,
+        totalMessages: allMessages.length,
+        usersWithoutChats: allUsers.filter(u => !allChats.some(c => c.userId === u.id)).length,
+        chatsWithoutMessages: allChats.filter(c => !allMessages.some(m => m.chatId === c.id)).length,
+      }
+    });
+  } catch (error) {
+    console.error('Debug data error:', error);
+    res.status(500).json({ error: 'OrOúO O_Oñ O_OñUOOU?O¦ O_UOO¦O' });
+  }
+});
+
+// ============ CATCH-ALL ROUTE (SPA Support) ============
+// OUOU+ O"OUOO_ O›OrOñUOU+ route O"OO'UØ - UØU.UØ route UØOUO O_UOU_UØ OñU^ O"UØ index.html O"OñU.UOU_OñO_U^U+UØ
+app.use((req, res) => {
+  res.sendFile(join(distPath, 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`dYs? Server running on http://localhost:${PORT}`);
+});
+

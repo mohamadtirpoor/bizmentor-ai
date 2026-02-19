@@ -362,11 +362,18 @@ const BlogPage: React.FC<BlogPageProps> = ({ darkMode, onBack }) => {
             بازگشت
           </button>
           
-          <div className="flex items-center gap-3 mb-4">
-            <BookOpen className={`w-8 h-8 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
-            <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              مقالات آموزشی
-            </h1>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <BookOpen className={`w-8 h-8 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
+              <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                مقالات آموزشی
+              </h1>
+            </div>
+            
+            {/* Enamad Badge */}
+            <a referrerPolicy='origin' target='_blank' href='https://trustseal.enamad.ir/?id=706824&Code=KaV0JnhzJyvKfuaqKc3Nn3wPwcFLggBn'>
+              <img referrerPolicy='origin' src='https://trustseal.enamad.ir/logo.aspx?id=706824&Code=KaV0JnhzJyvKfuaqKc3Nn3wPwcFLggBn' alt='enamad' style={{cursor: 'pointer', width: '80px'}} />
+            </a>
           </div>
           <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             دانش و تجربیات کسب‌وکار را با ما به اشتراک بگذارید

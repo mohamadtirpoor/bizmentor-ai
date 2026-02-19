@@ -14,7 +14,8 @@ import {
   X,
   RefreshCw,
   User,
-  Bot
+  Bot,
+  Phone
 } from 'lucide-react';
 
 const API_URL = 'http://localhost:3001/api';
@@ -56,6 +57,7 @@ interface UserItem {
   id: number;
   name: string;
   email: string;
+  phone?: string | null;
   hasPremium: boolean;
   freeMessagesUsed: number;
   createdAt: string;
@@ -171,6 +173,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ plans, setPlans, onLogout, dark
                   <p className="text-xs text-gray-500 mb-1">تاریخ عضویت</p>
                   <p className="text-lg font-bold text-white">{new Date(selectedUser.createdAt).toLocaleDateString('fa-IR')}</p>
                 </div>
+                {selectedUser.phone && (
+                  <div className="p-4 bg-white/5 rounded-xl col-span-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Phone className="w-4 h-4 text-gray-500" />
+                      <p className="text-xs text-gray-500">شماره تماس</p>
+                    </div>
+                    <p className="text-lg font-bold text-white" dir="ltr">{selectedUser.phone}</p>
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
                 <p className="text-sm text-purple-300">شناسه کاربر: {selectedUser.id}</p>
