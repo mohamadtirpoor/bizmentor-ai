@@ -11,9 +11,19 @@ export enum TaskStatus {
 
 // Extract tasks from AI response
 export function extractTasks(aiResponse: string): string[] {
-  const taskPattern = /\[TASK:\s*([^\]]+)\]/g;
+  // New format: [TASK]\n- Title: ...
+  const taskPattern = /\[TASK\]\s*\n\s*-\s*Title:\s*([^\n]+)/gi;
   const matches = [...aiResponse.matchAll(taskPattern)];
-  return matches.map(match => match[1].trim()).filter(desc => desc.length > 0);
+  const tasks = matches.map(match => match[1].trim()).filter(desc => desc.length > 0);
+  
+  // Fallback to old format if no new format found: [TASK: ...]
+  if (tasks.length === 0) {
+    const oldPattern = /\[TASK:\s*([^\]]+)\]/g;
+    const oldMatches = [...aiResponse.matchAll(oldPattern)];
+    return oldMatches.map(match => match[1].trim()).filter(desc => desc.length > 0);
+  }
+  
+  return tasks;
 }
 
 // Create task in database
