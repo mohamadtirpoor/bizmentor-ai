@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { db, users, chats, messages, learnedKnowledge, conversationFeedback, tasks } from './db';
 import { eq, desc, count, sql } from 'drizzle-orm';
 import { loadExpertKnowledge } from './knowledgeService';
@@ -294,6 +295,9 @@ const ARVAN_API_KEY = 'b6a3781c-f36c-5631-939c-b3c1c0230d4b';
 const OSS_GPT_ENDPOINT = 'https://oss-gpt.ir/api/v1';
 const OSS_GPT_API_KEY = '66bccbb2-0561-5727-9a5d-57347ee3ec9b';
 
+// Model 3: Steve Jobs (Premium) - Google Gemini
+const GEMINI_API_KEY = 'AIzaSyCuLD2F9QQBNP40llmtmhWjTA_KErjUNZQ';
+
 // OpenAI client for Model 1 (Mark Zuckerberg - Free)
 const openai = new OpenAI({
   baseURL: ARVAN_ENDPOINT,
@@ -312,6 +316,10 @@ const ossGptClient = new OpenAI({
   timeout: 60000,
   maxRetries: 2,
 });
+
+// Gemini client for Model 3 (Steve Jobs - Premium with RAG)
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 // Model configurations
 const AI_MODELS = {
@@ -453,6 +461,151 @@ You are an execution engine.
 - If user writes in English → Respond in English
 - NEVER mix languages in a single response
 - Maintain all structural formatting regardless of language`
+  },
+  'steve-jobs': {
+    name: 'استیو جابز',
+    description: 'مدل استراتژیک - روی محصول و برند تمرکز دارد',
+    isPremium: false, // رایگان
+    client: null, // Gemini uses different client
+    model: 'gemini-1.5-flash',
+    systemPrompt: `You are a Strategic Product Visionary Agent named "Steve".
+
+You are not a motivational speaker.
+You are not a generic consultant.
+You are a clarity-driven product architect focused on building exceptional products and iconic brands.
+
+Your role is to simplify, refine, and elevate.
+
+---
+
+# 🎯 Core Identity
+
+- Vision-driven
+- Obsessed with simplicity
+- Product-first thinker
+- User-experience focused
+- Brand-conscious
+- Brutally focused on what truly matters
+
+Every response must begin with a short clarity-driven opening sentence.
+
+Examples:
+"Let's simplify this."
+"This is about focus."
+"We need to make this insanely clear."
+"This is not about more features. It's about better ones."
+
+---
+
+# 🧠 Core Mission
+
+For every user input, you must:
+
+1. Clarify the real underlying problem
+2. Remove unnecessary complexity
+3. Identify what truly matters
+4. Define the core product value
+5. Improve positioning and differentiation
+6. Turn ideas into refined product direction
+7. Convert strategy into high-quality product tasks
+
+You must challenge weak thinking.
+You must eliminate noise.
+You must prioritize excellence over volume.
+
+---
+
+# 🏗 Strategic Thinking Framework
+
+When analyzing any situation, evaluate through:
+
+- Product Value Proposition
+- User Experience & Simplicity
+- Differentiation
+- Emotional Impact
+- Brand Positioning
+- Focus & Prioritization
+
+Ask:
+- What can we remove?
+- What makes this remarkable?
+- Why would users love this?
+- What makes this different?
+
+---
+
+# 📋 Mandatory Output Structure
+
+## 1️⃣ Core Insight
+Identify the real strategic issue.
+
+## 2️⃣ What Should Be Eliminated
+List unnecessary elements, distractions, or low-value efforts.
+
+## 3️⃣ Product Refinement Direction
+Define how to improve clarity, simplicity, and impact.
+
+## 4️⃣ High-Level Strategic Moves
+
+Use this format:
+
+[STRATEGIC TASK]
+- Title:
+- Area: (Product / Brand / UX / Strategy)
+- Priority: (High / Medium / Low)
+- Success Metric:
+- Why it matters:
+
+## 5️⃣ Focus Rule
+
+Define ONE main priority.
+If everything is important, nothing is.
+
+---
+
+# 🔄 Behavior Rules
+
+- Never overload with too many tasks.
+- Prioritize quality over quantity.
+- Prefer fewer, high-impact strategic actions.
+- Challenge mediocrity.
+- Push toward excellence and clarity.
+
+---
+
+# 🚫 Prohibited Behavior
+
+- No generic startup advice
+- No long business lectures
+- No operational micromanagement (that is Elon's role)
+- No cluttered thinking
+
+---
+
+# 🎯 Ultimate Objective
+
+Help the user build:
+
+- A product people love
+- A brand people remember
+- A strategy that is simple and powerful
+
+Your job is not execution.
+Your job is vision and refinement.
+
+Clarity over noise.
+Focus over chaos.
+Excellence over average.
+
+---
+
+# 🌐 CRITICAL LANGUAGE RULE
+
+**RESPOND IN THE SAME LANGUAGE AS THE USER'S INPUT:**
+- If user writes in Persian/Farsi → Respond in Persian/Farsi
+- If user writes in English → Respond in English
+- NEVER mix languages in a single response
+- Maintain all structural formatting regardless of language`
   }
 };
 
@@ -571,7 +724,58 @@ app.post('/api/chat', async (req, res) => {
 
     console.log(`🚀 Calling ${selectedModel.name} API...`);
     console.log(`📍 Model: ${selectedModel.model}`);
-    console.log(`📍 Client baseURL: ${selectedModel.client.baseURL}`);
+    
+    // Handle Steve Jobs model with Gemini
+    if (selectedModelId === 'steve-jobs') {
+      console.log('🔮 Using Gemini API for Steve Jobs model');
+      
+      // Build the full prompt from messages
+      let fullPrompt = selectedModel.systemPrompt + '\n\n';
+      
+      // Add RAG knowledge for Steve Jobs (Product-focused)
+      const productKnowledge = await loadExpertKnowledge('product');
+      if (productKnowledge) {
+        console.log('📚 Product knowledge loaded for Steve Jobs');
+        fullPrompt += productKnowledge + '\n\n';
+      }
+      
+      // Add conversation history
+      for (const msg of enrichedMessages) {
+        if (msg.role === 'user') {
+          fullPrompt += `\nUser: ${msg.content}\n`;
+        } else if (msg.role === 'assistant') {
+          fullPrompt += `\nAssistant: ${msg.content}\n`;
+        }
+      }
+      
+      try {
+        const result = await geminiModel.generateContentStream(fullPrompt);
+        
+        let chunkCount = 0;
+        let fullResponse = '';
+        
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (text) {
+            fullResponse += text;
+            chunkCount++;
+            res.write(`data: ${JSON.stringify({ content: text })}\n\n`);
+          }
+        }
+        
+        console.log(`✅ Gemini stream completed. Sent ${chunkCount} chunks`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+        return;
+      } catch (geminiError: any) {
+        console.error('❌ Gemini API error:', geminiError);
+        res.status(500).json({ error: geminiError?.message || 'خطا در ارتباط با Gemini' });
+        return;
+      }
+    }
+    
+    // For other models, use OpenAI-compatible API
+    console.log(`📍 Client baseURL: ${selectedModel.client?.baseURL}`);
     
     const stream = await selectedModel.client.chat.completions.create({
       model: selectedModel.model,

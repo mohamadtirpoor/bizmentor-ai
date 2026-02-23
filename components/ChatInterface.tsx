@@ -23,6 +23,15 @@ const AI_MODELS = [
     color: 'text-purple-400',
     bgColor: 'bg-purple-500/20',
     isPremium: false // موقتاً برای تست باز است
+  },
+  {
+    id: 'steve-jobs',
+    name: 'استیو جابز',
+    description: 'مدل استراتژیک - روی محصول و برند تمرکز دارد',
+    icon: Crown,
+    color: 'text-amber-400',
+    bgColor: 'bg-amber-500/20',
+    isPremium: false // موقتاً برای تست باز است
   }
 ];
 
