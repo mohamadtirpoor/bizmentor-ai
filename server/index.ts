@@ -294,7 +294,7 @@ const ARVAN_API_KEY = 'b6a3781c-f36c-5631-939c-b3c1c0230d4b';
 const OSS_GPT_ENDPOINT = 'https://oss-gpt.ir/api/v1';
 const OSS_GPT_API_KEY = '66bccbb2-0561-5727-9a5d-57347ee3ec9b';
 
-// Model 3: Steve Jobs (Free) - GPT-5
+// Model 3: Steve Jobs (Free) - GPT-5 via Arvan Cloud
 const GPT5_ENDPOINT = 'https://arvancloudai.ir/gateway/models/gpt-5/26d7e233-7ef8-5437-950d-4c106f053910/v1';
 const GPT5_API_KEY = '26d7e233-7ef8-5437-950d-4c106f053910';
 
@@ -472,7 +472,7 @@ You are an execution engine.
   'steve-jobs': {
     name: 'استیو جابز',
     description: 'مدل استراتژیک - روی محصول و برند تمرکز دارد',
-    isPremium: false, // رایگان
+    isPremium: false,
     client: gpt5Client,
     model: 'gpt-5',
     systemPrompt: `You are a Strategic Product Visionary Agent named "Steve".
