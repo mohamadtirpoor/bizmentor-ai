@@ -29,48 +29,48 @@ interface ChatHistory {
 
 const INITIAL_PLANS = [
   {
-    id: 'pro',
-    name: 'حرفه‌ای',
-    price: '۲۹۹,۰۰۰',
+    id: 'basic',
+    name: 'پایه',
+    price: '۱۹۹,۰۰۰',
     period: 'ماهانه',
     icon: Star,
     color: 'text-blue-400',
     features: [
-      'دسترسی به چت هوشمند',
-      'تحلیل‌های استاندارد کسب‌وکار',
+      'دسترسی به مدل مارک زاکربرگ',
+      '۱۰۰ پیام در ماه',
       'تاریخچه چت ۳۰ روزه',
       'پشتیبانی ایمیلی'
     ]
   },
   {
-    id: 'pro-plus',
-    name: 'پرو پلاس',
-    price: '۶۹۹,۰۰۰',
+    id: 'professional',
+    name: 'حرفه‌ای',
+    price: '۴۹۹,۰۰۰',
     period: 'ماهانه',
     icon: Zap,
     color: 'text-purple-400',
     isPopular: true,
     features: [
-      'همه امکانات پلن حرفه‌ای',
-      'مدل پیشرفته بیزنس‌متر',
-      'تحقیق بازار',
-      'پاسخ‌دهی سریع‌تر',
-      'خروجی PDF'
+      'دسترسی به همه مدل‌ها',
+      'پیام نامحدود',
+      'تاریخچه نامحدود',
+      'جستجوی عمیق',
+      'پشتیبانی اولویت‌دار'
     ]
   },
   {
-    id: 'platinum',
-    name: 'پلاتینیوم',
-    price: '۱,۴۹۰,۰۰۰',
+    id: 'enterprise',
+    name: 'سازمانی',
+    price: '۱,۲۹۰,۰۰۰',
     period: 'ماهانه',
     icon: Crown,
     color: 'text-amber-400',
     features: [
-      'همه امکانات پلن پرو پلاس',
-      'مکالمه صوتی زنده',
-      'تحلیل‌های نامحدود',
+      'همه امکانات پلن حرفه‌ای',
       'مشاور اختصاصی',
-      'پشتیبانی VIP'
+      'گزارش‌های تحلیلی',
+      'API اختصاصی',
+      'پشتیبانی ۲۴/۷'
     ]
   }
 ];
@@ -320,6 +320,23 @@ const App: React.FC = () => {
               <span>مقالات آموزشی</span>
             </button>
 
+            {/* Subscription Link - Mobile */}
+            <button
+              onClick={() => { setActiveTab('pricing'); setShowMobileSidebar(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all mb-2 ${
+                activeTab === 'pricing'
+                  ? darkMode
+                    ? 'bg-amber-500/20 text-amber-300'
+                    : 'bg-amber-100 text-amber-700'
+                  : darkMode
+                    ? 'text-gray-300 hover:bg-amber-500/10'
+                    : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Crown className="w-5 h-5" />
+              <span>خرید اشتراک</span>
+            </button>
+
             {/* User Account */}
             {isLoggedIn && userData && (
               <div className={`p-3 ${darkMode ? 'shadow-[0_-2px_10px_rgba(139,92,246,0.1)]' : 'shadow-[0_-2px_10px_rgba(0,0,0,0.05)]'}`}>
@@ -434,6 +451,23 @@ const App: React.FC = () => {
           <span>مقالات آموزشی</span>
         </button>
 
+        {/* Subscription Link - Desktop */}
+        <button
+          onClick={() => setActiveTab('pricing')}
+          className={`mx-3 mb-2 flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            activeTab === 'pricing'
+              ? darkMode
+                ? 'bg-amber-500/20 text-amber-300'
+                : 'bg-amber-100 text-amber-700'
+              : darkMode
+                ? 'text-gray-300 hover:bg-amber-500/10'
+                : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          <Crown className="w-5 h-5" />
+          <span>خرید اشتراک</span>
+        </button>
+
         {/* User Account */}
         {isLoggedIn && userData && (
           <div className={`p-3 ${darkMode ? 'shadow-[0_-2px_10px_rgba(139,92,246,0.1)]' : 'shadow-[0_-2px_10px_rgba(0,0,0,0.05)]'}`}>
@@ -501,6 +535,23 @@ const App: React.FC = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
+            {/* Subscription Button */}
+            <button
+              onClick={() => setActiveTab('pricing')}
+              className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'pricing'
+                  ? darkMode
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-amber-600 text-white'
+                  : darkMode
+                    ? 'text-gray-400 hover:bg-amber-500/10'
+                    : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Crown className="w-4 h-4" />
+              خرید اشتراک
+            </button>
+
             {/* Blog Button */}
             <button
               onClick={() => setActiveTab('blog')}
