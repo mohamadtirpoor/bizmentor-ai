@@ -294,9 +294,10 @@ const ARVAN_API_KEY = 'b6a3781c-f36c-5631-939c-b3c1c0230d4b';
 const OSS_GPT_ENDPOINT = 'https://oss-gpt.ir/api/v1';
 const OSS_GPT_API_KEY = '66bccbb2-0561-5727-9a5d-57347ee3ec9b';
 
-// Model 3: Steve Jobs (Free) - GPT-5 via Arvan Cloud
-const GPT5_ENDPOINT = 'https://arvancloudai.ir/gateway/models/gpt-5/26d7e233-7ef8-5437-950d-4c106f053910/v1';
-const GPT5_API_KEY = '26d7e233-7ef8-5437-950d-4c106f053910';
+// Model 3: Steve Jobs (Free) - Using Qwen like others
+// Note: GPT-5 endpoint was causing HTTP 500 errors, using Qwen instead
+const GPT5_ENDPOINT = ARVAN_ENDPOINT; // Use same endpoint as Mark Zuckerberg
+const GPT5_API_KEY = ARVAN_API_KEY; // Use same API key
 
 // OpenAI client for Model 1 (Mark Zuckerberg - Free)
 const openai = new OpenAI({
@@ -317,14 +318,14 @@ const ossGptClient = new OpenAI({
   maxRetries: 2,
 });
 
-// OpenAI client for Model 3 (Steve Jobs - Free with GPT-5)
+// OpenAI client for Model 3 (Steve Jobs - Free with Qwen)
 const gpt5Client = new OpenAI({
-  baseURL: GPT5_ENDPOINT,
-  apiKey: GPT5_API_KEY,
+  baseURL: ARVAN_ENDPOINT,
+  apiKey: ARVAN_API_KEY,
   timeout: 60000,
   maxRetries: 2,
   defaultHeaders: {
-    'Authorization': `apikey ${GPT5_API_KEY}`
+    'Authorization': `apikey ${ARVAN_API_KEY}`
   }
 });
 
@@ -474,7 +475,7 @@ You are an execution engine.
     description: 'مدل استراتژیک - روی محصول و برند تمرکز دارد',
     isPremium: false,
     client: gpt5Client,
-    model: 'gpt-5',
+    model: 'Qwen3-30B-A3B',
     systemPrompt: `You are a Strategic Product Visionary Agent named "Steve".
 
 You are not a motivational speaker.
