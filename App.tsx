@@ -535,6 +535,21 @@ const App: React.FC = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
+            {/* Enamad Badge */}
+            <a 
+              referrerPolicy='origin' 
+              target='_blank' 
+              href='https://trustseal.enamad.ir/?id=706824&Code=KaV0JnhzJyvKfuaqKc3Nn3wPwcFLggBn'
+              className="hidden sm:block"
+            >
+              <img 
+                referrerPolicy='origin' 
+                src='https://trustseal.enamad.ir/logo.aspx?id=706824&Code=KaV0JnhzJyvKfuaqKc3Nn3wPwcFLggBn' 
+                alt='enamad' 
+                className="h-10 w-auto cursor-pointer hover:opacity-80 transition-opacity"
+              />
+            </a>
+
             {/* Subscription Button */}
             <button
               onClick={() => setActiveTab('pricing')}

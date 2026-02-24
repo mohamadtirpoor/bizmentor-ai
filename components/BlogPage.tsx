@@ -369,11 +369,6 @@ const BlogPage: React.FC<BlogPageProps> = ({ darkMode, onBack }) => {
                 مقالات آموزشی
               </h1>
             </div>
-            
-            {/* Enamad Badge */}
-            <a referrerPolicy='origin' target='_blank' href='https://trustseal.enamad.ir/?id=706824&Code=KaV0JnhzJyvKfuaqKc3Nn3wPwcFLggBn'>
-              <img referrerPolicy='origin' src='https://trustseal.enamad.ir/logo.aspx?id=706824&Code=KaV0JnhzJyvKfuaqKc3Nn3wPwcFLggBn' alt='enamad' style={{cursor: 'pointer', width: '80px'}} />
-            </a>
           </div>
           <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             دانش و تجربیات کسب‌وکار را با ما به اشتراک بگذارید
