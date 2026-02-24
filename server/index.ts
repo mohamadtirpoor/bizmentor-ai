@@ -295,8 +295,8 @@ const OSS_GPT_ENDPOINT = 'https://oss-gpt.ir/api/v1';
 const OSS_GPT_API_KEY = '66bccbb2-0561-5727-9a5d-57347ee3ec9b';
 
 // Model 3: Steve Jobs (Free) - GPT-5 via Arvan Cloud
-const GPT5_ENDPOINT = 'https://arvancloudai.ir/gateway/models/gpt-5/26d7e233-7ef8-5437-950d-4c106f053910/v1';
-const GPT5_API_KEY = '26d7e233-7ef8-5437-950d-4c106f053910';
+const GPT5_ENDPOINT = 'https://arvancloudai.ir/gateway/models/GPT-5/U4aF_4QDEUUrff0zGZLokqMuWUa4aWRfWxphX2FEQuYDlNjukgJk2ONDlkmGDtQgE705Rmq7G2a9f2LlwLgeeG_wMrJ4ASoXwEnSmhd8yqlxb55QW6r2D5JdUVQtZYNXI6STW1jPMNy0mEnHePvdCsW0MvpsZb6mRTXl_XTGxnXhIQzE_u8lJD1T5P6eghg5HMpbGq1J1HK_89L4fgNHtHCd-fIiv4LQnrMRI1ib4Xk/v1';
+const GPT5_API_KEY = '61fbdbf7-c267-5ac9-a028-6fbb0e1853a5';
 
 // OpenAI client for Model 1 (Mark Zuckerberg - Free)
 const openai = new OpenAI({
@@ -324,7 +324,7 @@ const gpt5Client = new OpenAI({
   timeout: 60000,
   maxRetries: 2,
   defaultHeaders: {
-    'Authorization': `Bearer ${GPT5_API_KEY}`
+    'Authorization': `apikey ${GPT5_API_KEY}`
   }
 });
 
@@ -474,7 +474,7 @@ You are an execution engine.
     description: 'مدل استراتژیک - روی محصول و برند تمرکز دارد',
     isPremium: false,
     client: gpt5Client,
-    model: 'gpt-5',
+    model: 'GPT-5',
     systemPrompt: `You are a Strategic Product Visionary Agent named "Steve".
 
 You are not a motivational speaker.
@@ -895,7 +895,7 @@ app.get('/api/test-gpt5', async (req, res) => {
     console.log('API Key:', GPT5_API_KEY ? 'Present' : 'Missing');
     
     const response = await gpt5Client.chat.completions.create({
-      model: 'gpt-5',
+      model: 'GPT-5',
       messages: [{ role: 'user', content: 'سلام' }],
       max_tokens: 50
     });
