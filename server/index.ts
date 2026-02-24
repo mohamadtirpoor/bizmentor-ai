@@ -294,10 +294,9 @@ const ARVAN_API_KEY = 'b6a3781c-f36c-5631-939c-b3c1c0230d4b';
 const OSS_GPT_ENDPOINT = 'https://oss-gpt.ir/api/v1';
 const OSS_GPT_API_KEY = '66bccbb2-0561-5727-9a5d-57347ee3ec9b';
 
-// Model 3: Steve Jobs (Free) - Using Qwen like others
-// Note: GPT-5 endpoint was causing HTTP 500 errors, using Qwen instead
-const GPT5_ENDPOINT = ARVAN_ENDPOINT; // Use same endpoint as Mark Zuckerberg
-const GPT5_API_KEY = ARVAN_API_KEY; // Use same API key
+// Model 3: Steve Jobs (Free) - GPT-5 via Arvan Cloud
+const GPT5_ENDPOINT = 'https://arvancloudai.ir/gateway/models/gpt-5/26d7e233-7ef8-5437-950d-4c106f053910/v1';
+const GPT5_API_KEY = '26d7e233-7ef8-5437-950d-4c106f053910';
 
 // OpenAI client for Model 1 (Mark Zuckerberg - Free)
 const openai = new OpenAI({
@@ -318,14 +317,14 @@ const ossGptClient = new OpenAI({
   maxRetries: 2,
 });
 
-// OpenAI client for Model 3 (Steve Jobs - Free with Qwen)
+// OpenAI client for Model 3 (Steve Jobs - Free with GPT-5)
 const gpt5Client = new OpenAI({
-  baseURL: ARVAN_ENDPOINT,
-  apiKey: ARVAN_API_KEY,
+  baseURL: GPT5_ENDPOINT,
+  apiKey: GPT5_API_KEY,
   timeout: 60000,
   maxRetries: 2,
   defaultHeaders: {
-    'Authorization': `apikey ${ARVAN_API_KEY}`
+    'Authorization': `Bearer ${GPT5_API_KEY}`
   }
 });
 
@@ -475,7 +474,7 @@ You are an execution engine.
     description: 'مدل استراتژیک - روی محصول و برند تمرکز دارد',
     isPremium: false,
     client: gpt5Client,
-    model: 'Qwen3-30B-A3B',
+    model: 'gpt-5',
     systemPrompt: `You are a Strategic Product Visionary Agent named "Steve".
 
 You are not a motivational speaker.
@@ -873,6 +872,42 @@ app.get('/api/test-oss', async (req, res) => {
     });
   } catch (error: any) {
     console.error('❌ OSS GPT test failed:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+      type: error?.type,
+      response: error?.response?.data
+    });
+    res.status(500).json({ 
+      success: false, 
+      error: error?.message,
+      details: error?.response?.data || error?.toString()
+    });
+  }
+});
+
+// ============ TEST GPT-5 ============
+app.get('/api/test-gpt5', async (req, res) => {
+  try {
+    console.log('🧪 Testing GPT-5 connection...');
+    console.log('Endpoint:', GPT5_ENDPOINT);
+    console.log('API Key:', GPT5_API_KEY ? 'Present' : 'Missing');
+    
+    const response = await gpt5Client.chat.completions.create({
+      model: 'gpt-5',
+      messages: [{ role: 'user', content: 'سلام' }],
+      max_tokens: 50
+    });
+    
+    console.log('✅ GPT-5 test successful');
+    res.json({ 
+      success: true, 
+      response: response.choices[0]?.message?.content,
+      model: response.model
+    });
+  } catch (error: any) {
+    console.error('❌ GPT-5 test failed:', error);
     console.error('Error details:', {
       message: error?.message,
       status: error?.status,
